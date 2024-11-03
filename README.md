@@ -1,4 +1,4 @@
-# KOPERASI
+# CodeIgniter 3.2.0 (Custom)
 
 Owner : Fahmy Izwan
 
