@@ -57,7 +57,7 @@ class Auth extends MY_Controller
 
                 if ($attemptExceed) {
                     if (password_verify(input('password'), hasData($data, 'password', true, 'N/A'))) {
-                        $response = $this->sessionLoginStart($data);
+                        $response = $this->sessionLoginStart($data, false, true, 1);
 
                         // Clear attempt if login is success
                         if (isSuccess($response['code'])) {
@@ -119,7 +119,7 @@ class Auth extends MY_Controller
             ->safeOutput()
             ->fetch();
 
-        jsonResponse($this->sessionLoginStart($data));
+        jsonResponse($this->sessionLoginStart($data, false, true, 2));
     }
 
     // public function reset_password() {}
@@ -147,10 +147,10 @@ class Auth extends MY_Controller
             'isLoggedInSession' => TRUE
         ]);
 
-        jsonResponse(['code' => 200, 'message' => NULL]);
+        jsonResponse(['code' => 200, 'message' => 'Change profile to ' . hasData($data, 'roles.role_name', true)]);
     }
 
-    private function sessionLoginStart($dataUser, $isImpersonate = false, $notify = true)
+    private function sessionLoginStart($dataUser, $isImpersonate = false, $notify = true, $loginType = 1)
     {
         $response = ['code' => 400, 'message' => 'Wrong username/email or password'];
 
@@ -185,16 +185,16 @@ class Auth extends MY_Controller
 
                 setSession($sessionData);
 
+                $browsers = $this->agent->browser();
+                $os = $this->agent->platform();
+                $iplogin = $this->input->ip_address();
+
                 if ($notify) {
                     // Sent email secure login
                     $template = $this->MasterEmailTemplate_model->where('email_type', 'SECURE_LOGIN')->where('email_status', '1')->fetch();
 
                     // if template email is exist and active
                     if (hasData($template)) {
-
-                        $browsers = $this->agent->browser();
-                        $os = $this->agent->platform();
-                        $iplogin = $this->input->ip_address();
 
                         $bodyMessage = replaceTextWithData($template['email_body'], [
                             'name' => purify(hasData($dataUser, 'name', true, 'N/A')),
@@ -246,6 +246,20 @@ class Auth extends MY_Controller
                             'created_at' => timestamp()
                         ]);
                     }
+                }
+
+                if (in_array($loginType, [1, 2, 3])) {
+                    $this->SystemLoginHistory_model->create(
+                        [
+                            'user_id' => $userID,
+                            'ip_address' => $iplogin,
+                            'login_type' => $loginType,
+                            'operating_system' => $os,
+                            'browsers' => $browsers,
+                            'time' => timestamp(),
+                            'user_agent' => $this->input->user_agent(),
+                        ]
+                    );
                 }
 
                 return ['code' => 200, 'message' => 'Login', 'verify' => false, 'redirectUrl' => url('dashboard')];

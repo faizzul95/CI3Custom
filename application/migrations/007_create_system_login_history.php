@@ -13,9 +13,9 @@ class Migration_create_system_login_history extends CI_Migration {
 	public function up() {
 		$this->dbforge->add_field([
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
-			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
+			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer table users'],
 			'ip_address' => ['type' => 'VARCHAR', 'constraint' => 128, 'null' => TRUE, 'comment' => ''],
-			'login_type' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => '1', 'null' => TRUE, 'comment' => ''],
+			'login_type' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => '1', 'null' => TRUE, 'comment' => '1-CREDENTIAL, 2-SOCIALITE, 3-TOKEN'],
 			'operating_system' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => TRUE, 'comment' => ''],
 			'browsers' => ['type' => 'VARCHAR', 'constraint' => 50, 'null' => TRUE, 'comment' => ''],
 			'time' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
