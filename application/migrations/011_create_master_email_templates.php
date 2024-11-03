@@ -12,7 +12,7 @@ class Migration_create_master_email_templates extends CI_Migration {
 
 	public function up() {
 		$this->dbforge->add_field([
-			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'null' => TRUE, 'comment' => ''],
+			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'email_type' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'email_subject' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'email_body' => ['type' => 'LONGTEXT', 'null' => TRUE, 'comment' => ''],

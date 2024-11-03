@@ -513,7 +513,7 @@ trait RateLimitingThrottleTrait
 	public function isRateLimiting()
 	{
 		$CI = &get_instance();
-		$CI->load->config('security');
+		$CI->load->config('customs/security');
 		$enableThrottleData = $CI->config->item('throttle_enable');
 
 		// check if throttle is not enabled

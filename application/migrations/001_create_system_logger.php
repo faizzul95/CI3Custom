@@ -1,18 +1,21 @@
-<?php 
+<?php
 
- defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Migration_create_system_logger extends CI_Migration {
+class Migration_create_system_logger extends CI_Migration
+{
 
-	public function __construct() {
+	public function __construct()
+	{
 		parent::__construct();
 		$this->load->dbforge();
 		$this->table_name = 'system_logger';
 	}
 
-	public function up() {
+	public function up()
+	{
 		$this->dbforge->add_field([
-			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'null' => TRUE, 'comment' => ''],
+			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'errno' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'errtype' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'errstr' => ['type' => 'TEXT', 'null' => TRUE, 'comment' => ''],
@@ -29,7 +32,8 @@ class Migration_create_system_logger extends CI_Migration {
 		$this->dbforge->create_table($this->table_name, FALSE, ['ENGINE' => 'InnoDB', 'COLLATE' => 'utf8mb4_general_ci']);
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table($this->table_name, TRUE);
 	}
 }

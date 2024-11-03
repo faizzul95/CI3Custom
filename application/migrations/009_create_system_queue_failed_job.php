@@ -12,7 +12,7 @@ class Migration_create_system_queue_failed_job extends CI_Migration {
 
 	public function up() {
 		$this->dbforge->add_field([
-			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'null' => TRUE, 'comment' => ''],
+			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'uuid' => ['type' => 'VARCHAR', 'constraint' => 250, 'null' => TRUE, 'comment' => ''],
 			'type' => ['type' => 'VARCHAR', 'constraint' => 250, 'null' => TRUE, 'comment' => ''],
 			'payload' => ['type' => 'LONGTEXT', 'null' => TRUE, 'comment' => ''],

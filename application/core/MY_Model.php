@@ -17,6 +17,8 @@ class MY_Model extends CI_Model
     public $table;
     public $primaryKey = 'id';
     public $connection = 'default';
+    
+    public $db;
     private $_database;
 
     /**
@@ -88,6 +90,7 @@ class MY_Model extends CI_Model
 
     public function __construct()
     {
+        $this->db = $this->load->database($this->connection, TRUE);
         $this->_set_connection();
         $this->_set_timezone();
         $this->_fetch_table();

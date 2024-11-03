@@ -12,7 +12,7 @@ class Migration_create_system_audit_trails extends CI_Migration {
 
 	public function up() {
 		$this->dbforge->add_field([
-			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'null' => TRUE, 'comment' => ''],
+			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
 			'role_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
 			'user_fullname' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],

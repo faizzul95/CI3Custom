@@ -106,7 +106,7 @@ class Request
      */
     public function all()
     {
-        return array_merge(self::$data, ['files' => self::$files]);
+        return !empty(self::$files) ? array_merge(self::$data, ['files' => self::$files]) : self::$data;
     }
 
     /**

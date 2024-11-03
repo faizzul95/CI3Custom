@@ -12,7 +12,7 @@ class Migration_create_user_profile extends CI_Migration {
 
 	public function up() {
 		$this->dbforge->add_field([
-			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'null' => TRUE, 'comment' => ''],
+			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
 			'role_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
 			'is_main' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => TRUE, 'comment' => ''],

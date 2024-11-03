@@ -676,9 +676,10 @@ class CI_Input {
 	 */
 	public function method($upper = FALSE)
 	{
-		return ($upper)
-			? strtoupper($this->server('REQUEST_METHOD'))
-			: strtolower($this->server('REQUEST_METHOD'));
+		if ($this->server('REQUEST_METHOD'))
+			return ($upper) ? strtoupper($this->server('REQUEST_METHOD')) : strtolower($this->server('REQUEST_METHOD'));
+		else
+			return null;
 	}
 
 	// ------------------------------------------------------------------------

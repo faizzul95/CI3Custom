@@ -14,7 +14,13 @@ Route::group('/sys', function () {
     // SYSTEM LIST ALL DATABASE TABLE 
     Route::get('/db', function () {
         ci()->load->helper('custom_ci3_sysdb');
-        render('system/sysdb', ['data' => listSysDB()]);
+        render('system/sysdb', ['title' => 'Database', 'data' => listSysDB()]);
+    });
+
+    // SYSTEM LIST ALL MIGRATION FILES 
+    Route::get('/migration', function () {
+        ci()->load->helper('custom_ci3_sysdb');
+        render('system/sysdb', ['title' => 'Migration', 'data' => listSysMigration()]);
     });
 
     // SYSTEM SHOW TABLE STRUCTURE
@@ -57,5 +63,29 @@ Route::group('/sys', function () {
     Route::get('/backup-table/{table}', function ($table) {
         ci()->load->helper('custom_ci3_sysdb');
         jsonResponse(backupTable($table));
+    });
+
+    // SYSTEM MIGRATE TABLE (All)
+    Route::get('/migrate-all', function () {
+        ci()->load->helper('custom_ci3_sysdb');
+        jsonResponse(migrateAllTable());
+    });
+
+    // SYSTEM MIGRATE TABLE (All)
+    Route::get('/migrate-drop-all', function () {
+        ci()->load->helper('custom_ci3_sysdb');
+        jsonResponse(dropAllTable());
+    });
+
+    // SYSTEM MIGRATE TABLE (Single)
+    Route::get('/migrate/{filename}', function ($filename) {
+        ci()->load->helper('custom_ci3_sysdb');
+        jsonResponse(migrateTable($filename));
+    });
+
+    // SYSTEM DROP TABLE (Single)
+    Route::get('/migrate-drop/{filename}', function ($filename) {
+        ci()->load->helper('custom_ci3_sysdb');
+        jsonResponse(dropTable($filename));
     });
 });

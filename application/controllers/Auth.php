@@ -58,7 +58,7 @@ class Auth extends MY_Controller
     }
 
     public function socialite()
-    {
+    {     
         $data = $this->User_model
             ->with(['profile' => function ($query) {
                 $query->select(['id', 'user_id', 'role_id', 'is_main', 'profile_status'])
