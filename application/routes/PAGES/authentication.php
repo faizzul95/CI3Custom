@@ -29,3 +29,6 @@ Route::get('/forgot-password', function () {
         render('auth/forgot', ['title' => 'Sign In', 'currentSidebar' => 'auth', 'currentSubSidebar' => null]);
     }
 });
+
+
+Route::get('/logout', 'Auth@logout');

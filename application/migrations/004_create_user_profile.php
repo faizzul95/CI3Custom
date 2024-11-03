@@ -13,10 +13,10 @@ class Migration_create_user_profile extends CI_Migration {
 	public function up() {
 		$this->dbforge->add_field([
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
-			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
-			'role_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
-			'is_main' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => TRUE, 'comment' => ''],
-			'profile_status' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => TRUE, 'comment' => ''],
+			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer table users'],
+			'role_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer table master_roles'],
+			'is_main' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => TRUE, 'comment' => '0-No, 1-Yes'],
+			'profile_status' => ['type' => 'TINYINT', 'constraint' => 1, 'null' => TRUE, 'comment' => '0-Inactive, 1-Active'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'deleted_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],

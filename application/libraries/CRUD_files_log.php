@@ -63,9 +63,9 @@ class CRUD_files_log
 	public static function json_data($process_type, $process_log, $model_name = NULL, $function_name = NULL)
 	{
 		$json_data = array(
-			// 'user_id'           => (isLoginCheck()) ? currentUserID() : 0,
-			// 'user_name'         => (isLoginCheck()) ? currentUserFullName() : 'guest',
-			// 'user_role'         => (isLoginCheck()) ? currentUserRoleID() : 0,
+			'user_id'           => (isLoginCheck()) ? currentUserID() : 0,
+			'user_name'         => (isLoginCheck()) ? currentUserFullName() : 'guest',
+			'user_role'         => (isLoginCheck()) ? currentRoleID() : 0,
 			'process_type'      => $process_type,
 			'model_name'        => $model_name,
 			'function_name'     => $function_name,

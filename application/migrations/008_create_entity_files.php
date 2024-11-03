@@ -28,7 +28,7 @@ class Migration_create_entity_files extends CI_Migration {
 			'entity_type' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'entity_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
 			'entity_file_type' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
-			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
+			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer table users'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 		]);

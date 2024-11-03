@@ -13,7 +13,7 @@ class Migration_create_system_login_attempt extends CI_Migration {
 	public function up() {
 		$this->dbforge->add_field([
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
-			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => ''],
+			'user_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer table users'],
 			'ip_address' => ['type' => 'VARCHAR', 'constraint' => 128, 'null' => TRUE, 'comment' => ''],
 			'time' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'user_agent' => ['type' => 'VARCHAR', 'constraint' => 200, 'null' => TRUE, 'comment' => ''],

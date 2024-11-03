@@ -9,120 +9,176 @@ defined('BASEPATH') or exit('No direct script access allowed');
 	<meta name="base_url" content="<?php echo base_url() ?>" />
 	<title> Login Page </title>
 
-	<style type="text/css">
-		::selection {
-			background-color: #E13300;
-			color: white;
-		}
-
-		::-moz-selection {
-			background-color: #E13300;
-			color: white;
-		}
-
-		body {
-			background-color: #fff;
-			margin: 40px;
-			font: 13px/20px normal Helvetica, Arial, sans-serif;
-			color: #4F5155;
-		}
-
-		a {
-			color: #003399;
-			background-color: transparent;
-			font-weight: normal;
-			text-decoration: none;
-		}
-
-		a:hover {
-			color: #97310e;
-		}
-
-		h1 {
-			color: #444;
-			background-color: transparent;
-			border-bottom: 1px solid #D0D0D0;
-			font-size: 19px;
-			font-weight: normal;
-			margin: 0 0 14px 0;
-			padding: 14px 15px 10px 15px;
-		}
-
-		code {
-			font-family: Consolas, Monaco, Courier New, Courier, monospace;
-			font-size: 12px;
-			background-color: #f9f9f9;
-			border: 1px solid #D0D0D0;
-			color: #002166;
-			display: block;
-			margin: 14px 0 14px 0;
-			padding: 12px 10px 12px 10px;
-		}
-
-		#body {
-			margin: 0 15px 0 15px;
-			min-height: 96px;
-		}
-
-		p {
-			margin: 0 0 10px;
-			padding: 0;
-		}
-
-		p.footer {
-			text-align: right;
-			font-size: 11px;
-			border-top: 1px solid #D0D0D0;
-			line-height: 32px;
-			padding: 0 10px 0 10px;
-			margin: 20px 0 0 0;
-		}
-
-		#container {
-			margin: 10px;
-			border: 1px solid #D0D0D0;
-			box-shadow: 0 0 8px #D0D0D0;
-		}
-	</style> 
-
-	<script src="<?php echo base_url('public/custom/js/jquery.min.js') ?>"></script>
-	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" integrity="sha512-VEd+nq25CkR676O+pLBnDW09R7VQX9Mdiij052gVCp5yVH3jGtH70Ho/UUv4mJDsEdTvqRCFZg0NKGiojGnUCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<!-- Bootstrap -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 	<!-- Custom JS (Fahmy Izwan) -->
+	<script src="<?php echo base_url('public/custom/js/jquery.min.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/axios.min.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/js-cookie.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/helper.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/validationJS.js') ?>"></script>
-	<script src="<?php echo base_url('public/custom/js/block-ui.js') ?>"></script>
-	<script src="<?php echo base_url('public/custom/js/extended-ui-blockui.js') ?>"></script>
+
+	<script src="<?php echo base_url('public/custom/js/toastr.min.js') ?>"></script>
+	<link href="<?php echo base_url('public/custom/css/toastr.min.css', null, false) ?>" rel="stylesheet" type="text/css" />
+
+	<!-- google -->
+	<script src="https://apis.google.com/js/platform.js" async defer></script>
+	<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback" async defer></script>
+
 </head>
 
 <body>
 
-	<div id="container">
-		<h1>Welcome to CodeIgniter!</h1>
-
-		<div id="body">
-			This is page login
+	<div class="container d-flex justify-content-center align-items-center vh-100">
+		<div class="card p-4 shadow" style="width: 100%; max-width: 400px;">
+			<h2 class="card-title text-center mb-4"> Basic Login</h2>
+			<form id="formAuthentication" method="post">
+				<div class="mb-3">
+					<label for="username" class="form-label">Username</label>
+					<input type="text" class="form-control" id="username" name="username" autocomplete="off" required>
+				</div>
+				<div class="mb-3">
+					<label for="password" class="form-label">Password</label>
+					<input type="password" class="form-control" id="password" name="password" autocomplete="off" required>
+					<div class="text-end mt-2">
+						<a href="<?= url('forgot-password') ?>" class="text-decoration-none">Forgot Password?</a>
+					</div>
+				</div>
+				<div class="d-grid gap-2">
+					<?= recaptchaInputDiv() ?>
+					<button type="submit" id="loginBtn" class="btn btn-primary">Login</button>
+					<button type="button" class="btn btn-danger btn-icon waves-effect waves-light w-100 google-signin" onclick="googleLogin()" disabled>
+						<i class="ri-google-fill fs-16"></i> &nbsp; Sign In with Google
+					</button>
+				</div>
+			</form>
 		</div>
-
-		<p class="footer">Page rendered in <strong>{elapsed_time}</strong> seconds. <?php echo (ENVIRONMENT === 'development') ?  'CodeIgniter Version <strong>' . CI_VERSION . '</strong>' : '' ?></p>
 	</div>
 
 	<script type="text/javascript">
-        
 		$(document).ready(function() {
-			loggedIn();
+			setTimeout(function() {
+				googleLogin();
+			}, 15);
 		});
 
-		async function loggedIn() {
-			const res = await callApi('get', `auth/sign-in/21`);
+		var onloadCallback = function() {
+			grecaptcha.execute();
+		};
 
-			if (isSuccess(res)) {
-				log(res.data);
+		function setResponse(response) {
+			document.getElementById('captcha-response').value = response;
+		}
+
+		function googleLogin() {
+
+			var auth2;
+
+			gapi.load('auth2', function() {
+
+				var gapiConfig = JSON.parse('<?= gapiConfig() ?>');
+
+				// Retrieve the singleton for the GoogleAuth library and set up the client.
+				auth2 = gapi.auth2.init(gapiConfig)
+					.then(
+						//oninit
+						function(GoogleAuth) {
+							attachSignin(GoogleAuth, document.getElementsByClassName('google-signin')[0]);
+							$('.google-signin').attr('disabled', false);
+						},
+						//onerror
+						function(error) {
+							console.log('error initialize', error);
+							noti(500, 'Google Auth cannot be initialize');
+						}
+					);
+			});
+		}
+
+		function attachSignin(GoogleAuth, element) {
+			GoogleAuth.attachClickHandler(element, {},
+				function(googleUser) {
+					var profile = googleUser.getBasicProfile();
+					var google_id_token = googleUser.getAuthResponse().id_token;
+					loginGoogle(profile.getEmail());
+				},
+				function(res) {
+					if (res.error != 'popup_closed_by_user') {
+						noti(500, "Login using google was unsuccessful");
+					} else {
+						console.log('error', res);
+					}
+				});
+		}
+
+		async function loginGoogle(googleEmail) {
+
+			const res = await callApi('post', 'auth/socialite', {
+				'email': googleEmail
+			});
+
+			if (isSuccess(res.status)) {
+				if (res.data != null) {
+					const resCode = parseInt(res.data.code);
+					noti(resCode, res.data.message);
+
+					if (isSuccess(resCode)) {
+						setTimeout(function() {
+							window.location.href = res.data.redirectUrl;
+						}, 600);
+					}
+				} else {
+					noti(500, 'Email not found or not registered!');
+				}
 			}
+		}
+
+		$("#formAuthentication").submit(async function(event) {
+			event.preventDefault();
+			var username = $('#username').val();
+			var password = $('#password').val();
+
+			if (validateDataSignIn()) {
+				var form = $(this);
+				const res = await loginApi("auth/sign-in", form.serializeArray(), 'formAuthentication');
+				if (isSuccess(res)) {
+					const data = res.data;
+					const resCode = parseInt(data.code);
+
+					noti(resCode, data.message);
+
+					if (isSuccess(resCode)) {
+						setTimeout(function() {
+							window.location.href = data.redirectUrl;
+						}, 500);
+					} else {
+						$("#loginBtn").html('Login');
+						$("#loginBtn").attr('disabled', false);
+					}
+				} else {
+					$("#loginBtn").html('Login');
+					$("#loginBtn").attr('disabled', false);
+				}
+
+			} else {
+				validationJsError('toastr', 'multi'); // single or multi
+			}
+
+			grecaptcha.reset();
+			onloadCallback();
+
+		});
+
+		function validateDataSignIn() {
+
+			const rules = {
+				'password': 'required|min:8|max:255',
+				'username': 'required|min:2|max:255'
+			};
+
+			return validationJs(rules);
 		}
 	</script>
 

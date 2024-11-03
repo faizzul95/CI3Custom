@@ -46,6 +46,11 @@ class User_model extends MY_Model
     #                RELATIONSHIP BETWEEN MODEL                       #
     ###################################################################
 
+    public function main_profile()
+    {
+        return $this->hasOne('UserProfile_model', 'user_id', 'id');
+    }
+
     public function profile()
     {
         return $this->hasMany('UserProfile_model', 'user_id', 'id');

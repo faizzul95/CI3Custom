@@ -9,127 +9,66 @@ defined('BASEPATH') or exit('No direct script access allowed');
 	<meta name="base_url" content="<?php echo base_url() ?>" />
 	<title> Forgot Password Page </title>
 
-	<style type="text/css">
-		::selection {
-			background-color: #E13300;
-			color: white;
-		}
-
-		::-moz-selection {
-			background-color: #E13300;
-			color: white;
-		}
-
-		body {
-			background-color: #fff;
-			margin: 40px;
-			font: 13px/20px normal Helvetica, Arial, sans-serif;
-			color: #4F5155;
-		}
-
-		a {
-			color: #003399;
-			background-color: transparent;
-			font-weight: normal;
-			text-decoration: none;
-		}
-
-		a:hover {
-			color: #97310e;
-		}
-
-		h1 {
-			color: #444;
-			background-color: transparent;
-			border-bottom: 1px solid #D0D0D0;
-			font-size: 19px;
-			font-weight: normal;
-			margin: 0 0 14px 0;
-			padding: 14px 15px 10px 15px;
-		}
-
-		code {
-			font-family: Consolas, Monaco, Courier New, Courier, monospace;
-			font-size: 12px;
-			background-color: #f9f9f9;
-			border: 1px solid #D0D0D0;
-			color: #002166;
-			display: block;
-			margin: 14px 0 14px 0;
-			padding: 12px 10px 12px 10px;
-		}
-
-		#body {
-			margin: 0 15px 0 15px;
-			min-height: 96px;
-		}
-
-		p {
-			margin: 0 0 10px;
-			padding: 0;
-		}
-
-		p.footer {
-			text-align: right;
-			font-size: 11px;
-			border-top: 1px solid #D0D0D0;
-			line-height: 32px;
-			padding: 0 10px 0 10px;
-			margin: 20px 0 0 0;
-		}
-
-		#container {
-			margin: 10px;
-			border: 1px solid #D0D0D0;
-			box-shadow: 0 0 8px #D0D0D0;
-		}
-	</style>
-
-	<script src="<?php echo base_url('public/custom/js/jquery.min.js') ?>"></script>
-	<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> -->
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" integrity="sha512-VEd+nq25CkR676O+pLBnDW09R7VQX9Mdiij052gVCp5yVH3jGtH70Ho/UUv4mJDsEdTvqRCFZg0NKGiojGnUCw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+	<!-- Bootstrap -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 	<!-- Custom JS (Fahmy Izwan) -->
+	<script src="<?php echo base_url('public/custom/js/jquery.min.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/axios.min.js') ?>"></script>
-	<script src="<?php echo base_url('public/custom/js/js-cookie.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/helper.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/validationJS.js') ?>"></script>
-	<script src="<?php echo base_url('public/custom/js/block-ui.js') ?>"></script>
-	<script src="<?php echo base_url('public/custom/js/extended-ui-blockui.js') ?>"></script>
+
+	<script src="<?php echo base_url('public/custom/js/toastr.min.js') ?>"></script>
+	<link href="<?php echo base_url('public/custom/css/toastr.min.css', null, false) ?>" rel="stylesheet" type="text/css" />
+
+	<!-- google -->
+	<!-- <script src="https://apis.google.com/js/platform.js" async defer></script> -->
+	<script src="https://www.google.com/recaptcha/api.js?onload=onloadCallback" async defer></script>
 </head>
 
 <body>
 
-	<div id="container">
-		<h1>Welcome to CodeIgniter!</h1>
-
-		<div id="body">
-			<code>
-				<?php
-				echo '<pre>';
-				print_r($data);
-				echo '</pre>';
-				?>
-			</code>
+	<div class="container d-flex justify-content-center align-items-center vh-100">
+		<div class="card p-4 shadow" style="width: 100%; max-width: 400px;">
+			<h2 class="card-title text-center mb-4"> Basic Reset Password</h2>
+			<form id="formSentResetPassword" method="post">
+				<div class="mb-3">
+					<label for="email" class="form-label"> Email </label>
+					<input type="email" class="form-control" id="email" name="email" autocomplete="off" required>
+					<div class="text-end mt-2">
+						<a href="<?= url('') ?>" class="text-decoration-none">Remember Password?</a>
+					</div>
+				</div>
+				<div class="d-grid gap-2">
+					<?= recaptchaInputDiv() ?>
+					<button type="submit" id="resetBtn" class="btn btn-primary"> Sent Reset Link </button>
+				</div>
+			</form>
 		</div>
-
-		<p class="footer">Page rendered in <strong>{elapsed_time}</strong> seconds. <?php echo (ENVIRONMENT === 'development') ?  'CodeIgniter Version <strong>' . CI_VERSION . '</strong>' : '' ?></p>
 	</div>
 
 	<script type="text/javascript">
-		$(document).ready(function() {
-			getDataList();
+		$("#formSentResetPassword").submit(async function(event) {
+			event.preventDefault();
+			var email = $('#email').val();
+
+			if (validateDataReset()) {
+				var form = $(this);
+				noti(200, '(Dummy) Sent');
+				$('#email').val(''); // reset field
+			} else {
+				validationJsError('toastr', 'multi'); // single or multi
+			}
+
 		});
 
-		async function getDataList() {
-			const res = await callApi('get', 'welcome/testing1', {
-				'id': 12
-			});
+		function validateDataReset() {
+			const rules = {
+				'email': 'required|email|min:5|max:255'
+			};
 
-			if (isSuccess(res)) {
-				log(res.data);
-			}
+			return validationJs(rules);
 		}
 	</script>
 

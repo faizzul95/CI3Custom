@@ -1,5 +1,6 @@
 <?php
 
+use Ramsey\Uuid\Uuid;
 use eftec\bladeone\BladeOne; // reff : https://github.com/EFTEC/BladeOne
 use voku\helper\AntiXSS; // reff : https://github.com/voku/anti-xss
 
@@ -9,6 +10,16 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 if (!defined('BASEPATH')) {
     exit('No direct script access allowed');
+}
+
+// GENERATE UUIDv4
+
+if (!function_exists('uuid')) {
+    function uuid()
+    {
+        $uuid = Uuid::uuid4();
+        return $uuid->toString();
+    }
 }
 
 // SECURITY PLUGIN 
@@ -27,7 +38,8 @@ if (!function_exists('purify')) {
 }
 
 if (!function_exists('antiXss')) {
-    function antiXss($data) {
+    function antiXss($data)
+    {
         $antiXss = new AntiXSS();
         $antiXss->removeEvilAttributes(['style']); // Allow style attributes
 
@@ -53,46 +65,46 @@ if (!function_exists('antiXss')) {
 // BLADE PLUGIN
 
 if (!function_exists('render')) {
-	function render($fileName, $data = NULL)
-	{
-		$views = APPPATH . 'views';
-		$cache = isMobileDevice() ? APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'blade_cache/mobile/' : APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'blade_cache/browser/';
+    function render($fileName, $data = NULL)
+    {
+        $views = APPPATH . 'views';
+        $cache = isMobileDevice() ? APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'blade_cache/mobile/' : APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'blade_cache/browser/';
 
-		$fileName = $fileName . '.blade.php';
+        $fileName = $fileName . '.blade.php';
 
-		if (file_exists($views . DIRECTORY_SEPARATOR . $fileName)) {
+        if (file_exists($views . DIRECTORY_SEPARATOR . $fileName)) {
 
-			if (!file_exists($cache)) {
-				mkdir($cache, 0755, true);
-			}
+            if (!file_exists($cache)) {
+                mkdir($cache, 0755, true);
+            }
 
-			loadBladeTemplate($views, $cache, $fileName, $data);
-		} else {
-			log_message('error', $fileName . 'not found');
-			error('404');
-		}
-	}
+            loadBladeTemplate($views, $cache, $fileName, $data);
+        } else {
+            log_message('error', $fileName . 'not found');
+            error('404');
+        }
+    }
 }
 
 if (!function_exists('loadBladeTemplate')) {
-	function loadBladeTemplate($views, $cache = NULL, $fileName = NULL, $data = NULL)
-	{
-		# Please use this settings :
-		# 0 - MODE_AUTO : BladeOne reads if the compiled file has changed. If has changed,then the file is replaced.
-		# 1 - MODE_SLOW : Then compiled file is always replaced. It's slow and it's useful for development.
-		# 2 - MODE_FAST : The compiled file is never replaced. It's fast and it's useful for production.
-		# 5 - MODE_DEBUG :  DEBUG MODE, the file is always compiled and the filename is identifiable.
-		try {
-			$blade = new BladeOne($views, $cache, BladeOne::MODE_AUTO);
-			// $blade->setAuth(currentUserID(), currentUserRoleID(), permission());
-            $blade->pipeEnable=true; // pipes are disable by default so it must be enable.
-			$blade->setBaseUrl(base_url() . 'public/'); // with or without trail slash
-			echo $blade->run($fileName, $data);
-		} catch (Exception $e) {
-			log_message('error', 'Blade render : ' .$e->getMessage());
-			echo "<b> ERROR FOUND : </b> <br><br>" . $e->getMessage() . "<br><br><br>" . $e->getTraceAsString();
-		}
-	}
+    function loadBladeTemplate($views, $cache = NULL, $fileName = NULL, $data = NULL)
+    {
+        # Please use this settings :
+        # 0 - MODE_AUTO : BladeOne reads if the compiled file has changed. If has changed,then the file is replaced.
+        # 1 - MODE_SLOW : Then compiled file is always replaced. It's slow and it's useful for development.
+        # 2 - MODE_FAST : The compiled file is never replaced. It's fast and it's useful for production.
+        # 5 - MODE_DEBUG :  DEBUG MODE, the file is always compiled and the filename is identifiable.
+        try {
+            $blade = new BladeOne($views, $cache, BladeOne::MODE_AUTO);
+            // $blade->setAuth(currentUserID(), currentUserRoleID(), permission());
+            $blade->pipeEnable = true; // pipes are disable by default so it must be enable.
+            $blade->setBaseUrl(base_url() . 'public/'); // with or without trail slash
+            echo $blade->run($fileName, $data);
+        } catch (Exception $e) {
+            log_message('error', 'Blade render : ' . $e->getMessage());
+            echo "<b> ERROR FOUND : </b> <br><br>" . $e->getMessage() . "<br><br><br>" . $e->getTraceAsString();
+        }
+    }
 }
 
 // IMPORT EXCEL PLUGIN

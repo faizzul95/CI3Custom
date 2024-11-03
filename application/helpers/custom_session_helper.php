@@ -17,10 +17,10 @@ if (!function_exists('isLogin')) {
 }
 
 if (!function_exists('isLoginCheck')) {
-	function isLoginCheck($param = 'isLoggedInSession')
-	{
-		return hasSession($param);
-	}
+    function isLoginCheck($param = 'isLoggedInSession')
+    {
+        return hasSession($param);
+    }
 }
 
 /**
@@ -64,6 +64,13 @@ if (!function_exists('getSession')) {
 
 // CUSTOM HELPER BY PROJECT
 
+if (!function_exists('currentUserID')) {
+    function currentUserID()
+    {
+        return getSession('userID');
+    }
+}
+
 if (!function_exists('isSuperadmin')) {
     function isSuperadmin()
     {
@@ -81,20 +88,27 @@ if (!function_exists('isAdmin')) {
 if (!function_exists('currentRoleID')) {
     function currentRoleID()
     {
-        return getSession('roleid');
+        return getSession('roleID');
     }
 }
 
 if (!function_exists('currentUserFullname')) {
     function currentUserFullname()
     {
-        return getSession('fullname');
+        return getSession('userFullName');
     }
 }
 
 if (!function_exists('currentUserRoleName')) {
     function currentUserRoleName()
     {
-        return getSession('rolename');
+        return getSession('profileName');
+    }
+}
+
+if (!function_exists('currentUserAvatar')) {
+    function currentUserAvatar()
+    {
+        return getSession('userAvatar');
     }
 }

@@ -32,6 +32,11 @@ class UserProfile_model extends MY_Model
     #                RELATIONSHIP BETWEEN MODEL                       #
     ###################################################################
 
+    public function users()
+    {
+        return $this->belongsTo('User_model', 'user_id', 'id');
+    }
+
     public function roles()
     {
         return $this->hasOne('MasterRole_model', 'id', 'role_id');

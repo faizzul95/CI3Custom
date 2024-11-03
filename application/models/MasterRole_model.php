@@ -9,11 +9,13 @@ class MasterRole_model extends MY_Model
 
     public $fillable = [
         'role_name',
+        'role_rank',
         'role_status'
     ];
 
     public $_validationRules = [
         'role_name' => ['field' => 'role_name', 'label' => 'Role Name', 'rules' => 'required|trim|max_length[255]'],
+        'role_rank' => ['field' => 'role_rank', 'label' => 'Role Rank', 'rules' => 'trim|max_length[255]'],
         'role_status' => ['field' => 'role_status', 'label' => 'Role Status', 'rules' => 'required|trim']
     ];
 

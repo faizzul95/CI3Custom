@@ -14,7 +14,8 @@ class Migration_create_master_roles extends CI_Migration {
 		$this->dbforge->add_field([
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'role_name' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
-			'role_status' => ['type' => 'TINYINT', 'null' => TRUE, 'comment' => ''],
+			'role_rank' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
+			'role_status' => ['type' => 'TINYINT', 'null' => TRUE, 'comment' => '0-Inactive, 1-Active'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 		]);
