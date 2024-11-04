@@ -750,9 +750,17 @@ if (!function_exists('listSysMigration')) {
             $migration = new $class_name();
             $table_name = $migration->table_name;
 
+            $seeder = method_exists($migration, 'seeder') ? true : false;
+            if ($seeder && in_array($table_name, $existing_tables)) {
+                if ($CI->db->count_all_results($table_name) > 0) {
+                    $seeder = false;
+                }
+            }
+
             $migrations[] = [
                 'file' => $filename,
                 'table' => $table_name,
+                'seeder' => $seeder,
                 'exists' => in_array($table_name, $existing_tables),
                 'badge' => !in_array($table_name, $existing_tables) ? $statusBadge[0] : $statusBadge[1]
             ];
@@ -773,11 +781,18 @@ if (!function_exists('listSysMigration')) {
                             <i class="fas fa-play"></i> Migrate
                         </button>';
             } else {
+
+                if ($migrate['seeder']) {
+                    $html .= '<button class="btn btn-sm btn-info me-2" onclick="seederSingle(\'' . $migrate['file'] . '\')">
+                                    <i class="fas fa-plus"></i> Seeder
+                                </button>';
+                }
+
                 $html .= '<button class="btn btn-sm btn-warning me-1" onclick="remigrate(\'' . $migrate['file'] . '\')">
                             <i class="fas fa-redo"></i> Re-migrate
                         </button>
-                        <button class="btn btn-sm btn-danger" onclick="dropTable(\'' . $migrate['file'] . '\')">
-                            <i class="fas fa-trash"></i> Drop
+                        <button class="btn btn-sm btn-danger me-1" onclick="dropTable(\'' . $migrate['file'] . '\')">
+                            <i class="fas fa-trash"></i>
                         </button>';
             }
 
@@ -814,6 +829,27 @@ if (!function_exists('listSysMigration')) {
                             })
                             .fail(function(error) {
                                 Swal.fire('Error!', 'Migration failed: ' + error.responseText, 'error');
+                            });
+                    }
+                });
+            }
+
+            function seederSingle(filename) {
+                Swal.fire({
+                    title: 'Confirm Seeder',
+                    text: 'Are you sure you want to seed ' + filename + '?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, seed it!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        $.get(baseUrl + 'sys/seed/' + filename)
+                            .done(function(response) {
+                                Swal.fire('Success!', 'Seeder completed successfully.', 'success')
+                                    .then(() => location.reload());
+                            })
+                            .fail(function(error) {
+                                Swal.fire('Error!', 'Seeder failed: ' + error.responseText, 'error');
                             });
                     }
                 });
@@ -1235,8 +1271,10 @@ if (!function_exists('generateMigration')) {
             $content .= "\t\t]);\n\n";
 
             // Add primary key
+            $primaryKey = 'id';
             foreach ($fields as $field) {
                 if ($field->primary_key) {
+                    $primaryKey = $field->name;
                     $content .= "\t\t\$this->dbforge->add_key('" . $field->name . "', TRUE);\n";
                 }
             }
@@ -1257,6 +1295,47 @@ if (!function_exists('generateMigration')) {
             $content .= "\tpublic function down() {\n";
             $content .= "\t\t\$this->dbforge->drop_table(\$this->table_name, TRUE);\n";
             $content .= "\t}\n";
+
+            // Check if the table has data
+            $data_count = $CI->db->count_all($table);
+
+            // Add seeder method if there is data
+            if ($data_count > 0) {
+                // Fetch data from the table
+                $data = $CI->db->limit(2000)->get($table)->result_array();
+
+                $content .= "\n\tpublic function seeder() {\n";
+                $content .= "\t\t\$data = [\n";
+
+                foreach ($data as $index => $row) {
+                    $content .= "\t\t\t[\n";
+                    foreach ($row as $column => $value) {
+                        if (in_array($column, ['updated_at', 'deleted_at'])) {
+                            continue; // Skip updated_at and deleted_at
+                        }
+
+                        // Ensure that string values are quoted
+                        if (is_string($value)) {
+                            $value = $CI->db->escape($value);
+                        } else {
+                            $value = $value; // Leave numbers unquoted
+                        }
+
+                        $content .= "\t\t\t\t'$column' => $value,\n";
+                    }
+                    $content .= "\t\t\t]";
+                    // Add a comma only if this is not the last row
+                    if ($index < count($data) - 1) {
+                        $content .= ",";
+                    }
+                    $content .= "\n";
+                }
+
+                $content .= "\t\t];\n\n";
+                $content .= "\t\t\$this->db->insert_batch(\$this->table_name, \$data);\n";
+                $content .= "\t}\n";
+            }
+
             $content .= "}\n";
 
             // Write file
@@ -1721,6 +1800,43 @@ if (!function_exists('dropTable')) {
             }
         } catch (Exception $e) {
             return ['code' => 500, 'message' => 'Error drop table: ' . $e->getMessage()];
+        }
+    }
+}
+
+if (!function_exists('seedTable')) {
+    function seedTable($filename)
+    {
+        try {
+            if (filter_var(env('MIGRATION'), FILTER_VALIDATE_BOOLEAN)) {
+
+                $CI = &get_instance();
+                $CI->load->library('migration');
+
+                $file = APPPATH . 'migrations/' . $filename;
+
+                try {
+                    include_once($file);
+
+                    $class = 'Migration_' . strtolower(_get_migration_name(basename($file, '.php')));
+
+                    $migration = array($class, 'seeder');
+                    $migration[0] = new $migration[0];
+
+                    if (!method_exists($migration[0], 'seeder')) {
+                        return ['code' => 400, 'message' => 'No seeder data found.'];
+                    }
+
+                    call_user_func($migration);
+                    return ['code' => 200, 'message' => ''];
+                } catch (Throwable $e) {
+                    return ['code' => 500, 'message' => 'Error seed table: ' . $e->getMessage()];
+                }
+            } else {
+                return ['code' => 500, 'message' => 'No access to this url'];
+            }
+        } catch (Exception $e) {
+            return ['code' => 500, 'message' => 'Error seed table: ' . $e->getMessage()];
         }
     }
 }

@@ -88,4 +88,10 @@ Route::group('/sys', function () {
         ci()->load->helper('custom_ci3_sysdb');
         jsonResponse(dropTable($filename));
     });
+
+    // SYSTEM SEED DATA (Single)
+    Route::get('/seed/{filename}', function ($filename) {
+        ci()->load->helper('custom_ci3_sysdb');
+        jsonResponse(seedTable($filename));
+    });
 });

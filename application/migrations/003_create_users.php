@@ -1,16 +1,19 @@
-<?php 
+<?php
 
- defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
 
-class Migration_create_users extends CI_Migration {
+class Migration_create_users extends CI_Migration
+{
 
-	public function __construct() {
+	public function __construct()
+	{
 		parent::__construct();
 		$this->load->dbforge();
 		$this->table_name = 'users';
 	}
 
-	public function up() {
+	public function up()
+	{
 		$this->dbforge->add_field([
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'name' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
@@ -34,7 +37,27 @@ class Migration_create_users extends CI_Migration {
 		$this->dbforge->create_table($this->table_name, FALSE, ['ENGINE' => 'InnoDB', 'COLLATE' => 'utf8mb4_general_ci']);
 	}
 
-	public function down() {
+	public function down()
+	{
 		$this->dbforge->drop_table($this->table_name, TRUE);
+	}
+
+	public function seeder()
+	{
+		$data = [
+			[
+				'name'	  			  => 'SUPER ADMINISTRATOR',
+				'user_preferred_name' => 'S.ADMIN',
+				'email' 		  	  => 'superadmin@test.com',
+				'user_gender' 		  => '1',
+				'user_dob' 	  		  => currentDate(),
+				'username' 	  		  => 'superadmin',
+				'password' 	  		  => password_hash('password', PASSWORD_DEFAULT),
+				'user_status' 		  => '1',
+				'created_at'		  => timestamp(),
+			],
+		];
+
+		$this->db->insert_batch($this->table_name, $data);
 	}
 }

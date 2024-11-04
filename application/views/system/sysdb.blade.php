@@ -15,7 +15,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 	<script src="<?php echo base_url('public/custom/js/helper.js') ?>"></script>
 </head>
 
-<body>
+<body style="background-color: #ececec;">
 
 	<div class="container-fluid">
 		<?php echo $data; ?>
