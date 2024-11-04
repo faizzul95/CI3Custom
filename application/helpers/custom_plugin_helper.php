@@ -3,6 +3,7 @@
 use Ramsey\Uuid\Uuid;
 use eftec\bladeone\BladeOne; // reff : https://github.com/EFTEC/BladeOne
 use voku\helper\AntiXSS; // reff : https://github.com/voku/anti-xss
+use GO\Scheduler; // reff : https://github.com/peppeocchi/php-cron-scheduler
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -10,6 +11,15 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 if (!defined('BASEPATH')) {
     exit('No direct script access allowed');
+}
+
+// SCHEDULER
+
+if (!function_exists('cronScheduler')) {
+	function cronScheduler()
+	{
+		return new Scheduler(); // Create a new scheduler
+	}
 }
 
 // GENERATE UUIDv4
