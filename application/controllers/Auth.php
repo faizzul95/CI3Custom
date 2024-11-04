@@ -122,7 +122,6 @@ class Auth extends MY_Controller
         jsonResponse($this->sessionLoginStart($data, false, true, 2));
     }
 
-    // public function reset_password() {}
     // public function impersonateUser($id = null) {}
 
     public function change_profile()
@@ -275,5 +274,85 @@ class Auth extends MY_Controller
     {
         $this->session->sess_destroy();
         redirect('/');
+    }
+
+    public function mail_reset_password()
+    {
+        // default response
+        $response = ['code' => 400, 'message' => 'The email address you provided is invalid or unregistered'];
+
+        $dataUser = $this->User_model
+            ->with(['main_profile' => function ($query) {
+                $query->select(['id', 'user_id', 'role_id', 'is_main', 'profile_status'])
+                    ->where('is_main', '1')
+                    ->where('profile_status', '1');
+            }])
+            ->with(['main_profile.roles' => function ($query) {
+                $query->select('id, role_name')->safeOutput();
+            }])
+            ->with('main_profile.avatar')
+            ->where('email', input('email'))
+            ->safeOutput()
+            ->fetch();
+
+        if (hasData($dataUser)) {
+            // Sent email secure login
+            $template = $this->MasterEmailTemplate_model->where('email_type', 'FORGOT_PASSWORD')->where('email_status', '1')->fetch();
+
+            // if template email is exist and active
+            if (hasData($template)) {
+
+                $token = $this->generateResetToken(input('email'));
+                $url = 'auth/reset-new-password/' . $token;
+
+                $bodyMessage = replaceTextWithData($template['email_body'], [
+                    'to' => $dataUser['user_full_name'],
+                    'url' => url($url)
+                ]);
+
+                // add to queue
+                $addToScheduler = $this->SystemQueueJob_model->create([
+                    'uuid' => uuid(),
+                    'type' => 'email',
+                    'payload' => json_encode([
+                        'name' => purify(hasData($dataUser, 'name', true, 'N/A')),
+                        'to' => purify(hasData($dataUser, 'email', true, 'N/A')),
+                        'cc' => $template['email_cc'],
+                        'bcc' => $template['email_bcc'],
+                        'subject' => $template['email_subject'],
+                        'body' => $bodyMessage,
+                        'attachment' => NULL,
+                    ]),
+                    'created_at' => timestamp()
+                ]);
+
+                $response = (isSuccess($addToScheduler['code'])) ? ['code' => 200, 'message' => 'Email sent '] : ['code' => 400, 'message' => 'Failed to sent email'];
+            }
+        }
+
+        jsonResponse($response);
+    }
+
+    private function generateResetToken($email, $expiryMinutes = 45)
+    {
+        // Set expiration timestamp in seconds (current time + expiry time in minutes)
+        $expiresAt = time() + ($expiryMinutes * 60);
+
+        // Concatenate email and expiration timestamp
+        $data = "{$email}|{$expiresAt}";
+
+        // Retrieve secret key from environment
+        $secretKey = env('PRT_SECRET_KEY') ?: 'th!sI5aT0k3nF0rP@$$w0rdRe53tD3f@ult2o24';
+
+        // Generate a hash using HMAC with SHA-256
+        $hash = hash_hmac('sha256', $data, $secretKey, true);
+
+        // Concatenate the data with the hash, separated by '|'
+        $token = base64_encode($data . '|' . $hash);
+
+        // Make the token URL-safe by replacing URL-unsafe characters
+        $urlSafeToken = str_replace(['+', '/', '='], ['-', '_', ''], $token);
+
+        return $urlSafeToken;
     }
 }

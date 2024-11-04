@@ -16,6 +16,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 	<!-- Custom JS (Fahmy Izwan) -->
 	<script src="<?php echo base_url('public/custom/js/jquery.min.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/axios.min.js') ?>"></script>
+	<script src="<?php echo base_url('public/custom/js/js-cookie.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/helper.js') ?>"></script>
 	<script src="<?php echo base_url('public/custom/js/validationJS.js') ?>"></script>
 
@@ -49,18 +50,39 @@ defined('BASEPATH') or exit('No direct script access allowed');
 	</div>
 
 	<script type="text/javascript">
+
+		var onloadCallback = function() {
+			grecaptcha.execute();
+		};
+
+		function setResponse(response) {
+			document.getElementById('captcha-response').value = response;
+		}
+
 		$("#formSentResetPassword").submit(async function(event) {
 			event.preventDefault();
 			var email = $('#email').val();
 
 			if (validateDataReset()) {
-				var form = $(this);
-				noti(200, '(Dummy) Sent');
-				$('#email').val(''); // reset field
+				const submitBtnText = $('#resetBtn').html();
+				loadingBtn('resetBtn', true, submitBtnText);
+
+				const res = await callApi('post', 'auth/sent-mail-forgot', {
+					'email': trimData(email)
+				});
+
+				if (isSuccess(res)) {
+					noti(200, res.data.message);
+					$('#email').val(''); // reset field
+				}
+
+				loadingBtn('resetBtn', false, submitBtnText);
 			} else {
 				validationJsError('toastr', 'multi'); // single or multi
 			}
 
+			grecaptcha.reset();
+			onloadCallback();
 		});
 
 		function validateDataReset() {
