@@ -84,9 +84,9 @@ Route::group('/sys', function () {
     });
 
     // SYSTEM DROP TABLE (Single)
-    Route::get('/migrate-drop/{filename}', function ($filename) {
+    Route::get('/migrate-drop/{filename}/{backup?}', function ($filename, $backup = false) {
         ci()->load->helper('custom_ci3_sysdb');
-        jsonResponse(dropTable($filename));
+        jsonResponse(dropTable($filename, (bool) $backup));
     });
 
     // SYSTEM SEED DATA (Single)

@@ -865,7 +865,7 @@ if (!function_exists('listSysMigration')) {
                 }).then((result) => {
                     if (result.isConfirmed) {
                         // First drop then migrate
-                        $.get(baseUrl + 'sys/migrate-drop/' + filename)
+                        $.get(baseUrl + 'sys/migrate-drop/' + filename + '/1')
                             .done(function() {
                                 return $.get(baseUrl + 'sys/migrate/' + filename);
                             })
@@ -1602,7 +1602,7 @@ if (!function_exists('truncateTable')) {
  * @return array Status array with code, message, and additional information.
  */
 if (!function_exists('backupTable')) {
-    function backupTable($table, $type = 'files')
+    function backupTable($table, $type = 'files', $isTemp = false)
     {
         $CI = &get_instance();
 
@@ -1614,14 +1614,14 @@ if (!function_exists('backupTable')) {
              WHERE table_schema = '{$CI->db->database}' 
              AND table_name = '{$table}'")->row()->size_mb;
 
-            if ($size >= 100) {
+            if ($size >= 250) {
                 return ['code' => 400, 'message' => 'Table too big to backup using this function.'];
             }
 
             if ($type === 'table') {
                 // Generate backup table name
                 $timestamp = date('Ymd_His');
-                $backupTable = "{$table}_backup_{$timestamp}";
+                $backupTable = ($isTemp) ? "temp_{$table}_remigrate_" . date('Ymd') : "{$table}_backup_{$timestamp}";
 
                 // Create backup table
                 $CI->db->query("CREATE TABLE {$backupTable} LIKE {$table}");
@@ -1771,7 +1771,7 @@ if (!function_exists('migrateTable')) {
 }
 
 if (!function_exists('dropTable')) {
-    function dropTable($filename)
+    function dropTable($filename, $backup = false)
     {
         try {
             if (filter_var(env('MIGRATION'), FILTER_VALIDATE_BOOLEAN)) {
@@ -1788,6 +1788,19 @@ if (!function_exists('dropTable')) {
 
                     $migration = array($class, 'down');
                     $migration[0] = new $migration[0];
+
+                    if ($backup) {
+                        $size = $CI->db->query("SELECT 
+                        round(((data_length + index_length) / 1024 / 1024), 2) AS size_mb 
+                        FROM information_schema.TABLES 
+                        WHERE table_schema = '{$CI->db->database}' 
+                        AND table_name = '{$table}'")->row()->size_mb;
+
+                        if ($size > 0 && $size <= 250) {
+                            $table = $migration[0]->table_name;
+                            backupTable($table, 'table', true);
+                        }
+                    }
 
                     call_user_func($migration);
 
@@ -1813,9 +1826,10 @@ if (!function_exists('seedTable')) {
                 $CI = &get_instance();
                 $CI->load->library('migration');
 
-                $file = APPPATH . 'migrations/' . $filename;
-
                 try {
+
+                    $file = APPPATH . 'migrations/' . $filename;
+
                     include_once($file);
 
                     $class = 'Migration_' . strtolower(_get_migration_name(basename($file, '.php')));
@@ -1823,11 +1837,13 @@ if (!function_exists('seedTable')) {
                     $migration = array($class, 'seeder');
                     $migration[0] = new $migration[0];
 
+
                     if (!method_exists($migration[0], 'seeder')) {
                         return ['code' => 400, 'message' => 'No seeder data found.'];
                     }
 
                     call_user_func($migration);
+
                     return ['code' => 200, 'message' => ''];
                 } catch (Throwable $e) {
                     return ['code' => 500, 'message' => 'Error seed table: ' . $e->getMessage()];
