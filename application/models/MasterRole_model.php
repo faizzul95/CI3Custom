@@ -23,4 +23,13 @@ class MasterRole_model extends MY_Model
     {
         parent::__construct();
     }
+
+    ###################################################################
+    #                RELATIONSHIP BETWEEN MODEL                       #
+    ###################################################################
+
+    public function permissions()
+    {
+        return $this->hasMany('SystemPermission_model', 'role_id', 'id');
+    }
 }

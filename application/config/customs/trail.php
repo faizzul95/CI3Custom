@@ -30,7 +30,7 @@ $config['audit_table_name'] = 'system_audit_trails';
 | Set [TRUE/FALSE] to use of audit trail
 |
 */
-$config['audit_enable'] = FALSE;
+$config['audit_enable'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,8 +49,8 @@ $config['not_allowed_tables'] = [
 	'system_audit_trails',
 	'system_migrations',
 	'system_queue_job',
-	'users_password_reset',
-	'users_login_history',
+	'system_queue_failed_job',
+	'system_login_attempt'
 ];
 
 /*

@@ -19,6 +19,7 @@ class User_model extends MY_Model
         'user_status',
         'remember_token',
         'first_login',
+        'change_password',
         'email_verified_at'
     ];
 
@@ -32,6 +33,7 @@ class User_model extends MY_Model
         'username' => ['field' => 'username', 'label' => 'Username', 'rules' => 'required|min_length[5]|max_length[12]|is_unique[users.username]', 'errors' => ['is_unique' => 'This %s already exists.']],
         'password' => ['field' => 'password', 'label' => 'Password', 'rules' => 'required|trim|min_length[8]|max_length[20]'],
         'user_status' => ['field' => 'user_status', 'label' => 'Status', 'rules' => 'required|trim|integer'],
+        'change_password' => ['field' => 'change_password', 'label' => 'Change Password', 'rules' => 'trim|integer'],
         'first_login' => ['field' => 'first_login', 'label' => 'First login status', 'rules' => 'trim|integer']
     ];
 

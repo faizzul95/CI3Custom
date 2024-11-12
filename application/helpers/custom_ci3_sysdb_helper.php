@@ -189,11 +189,6 @@ if (!function_exists('listSysDB')) {
                     WHERE table_schema = '{$CI->db->database}' 
                     AND table_name = '{$table}'")->row()->size_mb;
 
-            // Check if the table name is actually is backup, then removed the migration and model creation
-            if (strpos($table, 'backup') !== false || strpos($table, 'bck') !== false || strpos($table, 'back') !== false || strpos($table, 'bak') !== false) {
-                $canGenerateMigration = $canGenerateMModel = $canBackupTable = false;
-            }
-
             $html .= '<tr>
                         <td>
                             <div class="d-flex align-items-center">
@@ -310,10 +305,9 @@ if (!function_exists('listSysDB')) {
 
                 // Initialize DataTable
                 $("#databaseTables").DataTable({
-                    pageLength: 25,
                     responsive: true,
-                    pageLength: 25,
-                    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                    pageLength: 50,
+                    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
                     order: [[0, "asc"]],
                     columnDefs: [
                         {
@@ -807,7 +801,16 @@ if (!function_exists('listSysMigration')) {
             $(document).ready(function() {
                 $('#migrationsTable').DataTable({
                     responsive: true,
-                    order: [[0, 'asc']]
+                    pageLength: 50,
+                    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+                    order: [[0, 'asc']],
+                    columnDefs: [
+                        {
+                            targets: -1,
+                            orderable: false,
+                            searchable: false
+                        }
+                    ]
                 });
             });
 

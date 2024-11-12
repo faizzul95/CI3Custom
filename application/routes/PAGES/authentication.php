@@ -8,13 +8,7 @@ Route::get('/', function () {
     if (isLoginCheck()) {
         redirect('dashboard', true);
     } else {
-
-        // $remember = app('App\services\modules\authentication\logics\RememberLogic')->logic();
-
-        // if (hasData($remember, 'code') && isSuccess($remember['code'])) {
-        //     redirect($remember['redirectUrl'], true);
-        // }
-
+        // isRememberCookieEnable();
         // if not redirect to page login
         render('auth/login', ['title' => 'Sign In', 'currentSidebar' => 'auth', 'currentSubSidebar' => null]);
     }

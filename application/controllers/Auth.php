@@ -36,10 +36,15 @@ class Auth extends MY_Controller
                         ->where('profile_status', '1');
                 }])
                 ->with(['main_profile.roles' => function ($query) {
-                    $query->select('id, role_name')->safeOutput();
+                    $query->select('id, role_name')->with(['permissions' => function ($query) {
+                        $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
+                            $query->select('id, abilities_slug');
+                        }]);
+                    }])->safeOutput();
                 }])
                 ->with('main_profile.avatar')
                 ->where('username', input('username'))
+                ->orWhere('email', input('username'))
                 ->safeOutput()
                 ->fetch();
 
@@ -112,7 +117,11 @@ class Auth extends MY_Controller
                     ->where('profile_status', '1');
             }])
             ->with(['main_profile.roles' => function ($query) {
-                $query->select('id, role_name')->safeOutput();
+                $query->select('id, role_name')->with(['permissions' => function ($query) {
+                    $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
+                        $query->select('id, abilities_slug');
+                    }]);
+                }])->safeOutput();
             }])
             ->with('main_profile.avatar')
             ->where('email', input('email'))
@@ -122,8 +131,6 @@ class Auth extends MY_Controller
         jsonResponse($this->sessionLoginStart($data, false, true, 2));
     }
 
-    // public function impersonateUser($id = null) {}
-
     public function change_profile()
     {
         $profileID = input('profile_id');
@@ -131,7 +138,11 @@ class Auth extends MY_Controller
 
         $data = $this->UserProfile_model
             ->with(['roles' => function ($query) {
-                $query->select('id, role_name')->safeOutput();
+                $query->select('id, role_name')->with(['permissions' => function ($query) {
+                    $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
+                        $query->select('id, abilities_slug');
+                    }]);
+                }])->safeOutput();
             }])
             ->with('avatar')
             ->safeOutput()
@@ -143,6 +154,7 @@ class Auth extends MY_Controller
             'profileID'  => hasData($data, 'id', true),
             'profileName' => hasData($data, 'roles.role_name', true),
             'roleID' => hasData($data, 'roles.id', true),
+            'permissions' => getPermissionSlug(hasData($data, 'roles.permissions', true, [])),
             'isLoggedInSession' => TRUE
         ]);
 
@@ -173,6 +185,7 @@ class Auth extends MY_Controller
                     'profileName' => hasData($dataUser, 'main_profile.roles.role_name', true),
                     'roleID' => hasData($dataUser, 'main_profile.roles.id', true),
                     'isImpersonateSession' => $isImpersonate,
+                    'permissions' => getPermissionSlug(hasData($dataUser, 'main_profile.roles.permissions', true, [])),
                     'isLoggedInSession' => TRUE
                 ];
 

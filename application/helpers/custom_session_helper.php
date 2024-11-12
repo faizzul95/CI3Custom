@@ -61,8 +61,47 @@ if (!function_exists('getSession')) {
     }
 }
 
-
 // CUSTOM HELPER BY PROJECT
+
+/**
+ * Extracts the abilities_slug values from a given permission array.
+ *
+ * This function iterates through an array of permissions to gather unique ability slugs.
+ * If the abilities_slug contains a wildcard '*', it returns ['*'] immediately, ignoring other entries.
+ * If no wildcard is found, it collects all unique abilities_slug values.
+ *
+ * @param array|null $permission Array of permission data containing nested abilities.
+ * @return array Returns an array of abilities slugs. If '*' is present, returns ['*'].
+ */
+if (!function_exists('getPermissionSlug')) {
+    function getPermissionSlug($permission = null)
+    {
+        $slug = [];
+
+        // Check if the permission array is valid
+        if (empty($permission) || !is_array($permission)) {
+            return $slug;
+        }
+
+        foreach ($permission as $perm) {
+            // Check if abilities key exists and has an abilities_slug
+            if (isset($perm['abilities']['abilities_slug'])) {
+                $abilitySlug = $perm['abilities']['abilities_slug'];
+
+                // If the wildcard '*' is found, return ['*'] immediately
+                if ($abilitySlug === '*') {
+                    return ['*'];
+                }
+
+                // Add the ability slug if it's not already in the slug array
+                $slug[] = $abilitySlug;
+            }
+        }
+
+        // Return unique slugs
+        return array_unique($slug);
+    }
+}
 
 if (!function_exists('currentUserID')) {
     function currentUserID()
