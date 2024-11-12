@@ -37,17 +37,45 @@ class Migration_create_system_abilities extends CI_Migration
 	{
 		$data = [
 			[
-				'id'	  			  => '1',
-				'abilities_name'	  => 'All Access',
+				'abilities_name'	  => 'All access',
 				'abilities_slug'	  => '*',
-				'abilities_desc'	  => 'User can view everything',
+				'abilities_desc'	  => 'User can view everything (FOR SUPERADMIN ONLY)',
 				'created_at'		  => timestamp(),
 			],
 			[
-				'id'	  			  => '2',
 				'abilities_name'	  => 'View Dashboard',
 				'abilities_slug'	  => 'dashboard-view',
 				'abilities_desc'	  => 'User can view dashboard information',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'Menu User',
+				'abilities_slug'	  => 'user-menu-view',
+				'abilities_desc'	  => 'User can view User menu',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'List User',
+				'abilities_slug'	  => 'user-view',
+				'abilities_desc'	  => 'User can view List user',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'Create New User',
+				'abilities_slug'	  => 'user-create',
+				'abilities_desc'	  => 'User can create new user',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'Update User',
+				'abilities_slug'	  => 'user-update',
+				'abilities_desc'	  => 'User can update user information',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'Delete User',
+				'abilities_slug'	  => 'user-delete',
+				'abilities_desc'	  => 'User can delete user information',
 				'created_at'		  => timestamp(),
 			],
 		];

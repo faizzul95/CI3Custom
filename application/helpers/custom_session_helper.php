@@ -24,18 +24,41 @@ if (!function_exists('isLoginCheck')) {
 }
 
 /**
- * Check if the user has the permission
+ * Check if the user has the specified permissions.
+ *
+ * This function checks if a user has one or multiple specified permissions.
+ * If the wildcard '*' is present in the user's permission list, it grants all permissions automatically.
+ *
+ * @param string|array $params A single permission slug (string) or an array of permission slugs to check.
+ * @return mixed Returns true if '*' exists or the specified permission exists in the list.
+ *               Returns an associative array with each permission set to true if '*' is present or if each permission exists in the list.
  */
 if (!function_exists('permission')) {
     function permission($params)
     {
-        $ci = &get_instance();
+        $listPermission = getSession('permissions');
 
-        $roleID = $ci->session->get_userdata('roleid');
-        // $abilities = $ci->db->select('*')->where('<column name>', $roleID)->get('<table name>')->result_array();
+        // If '*' exists in listPermission, grant all permissions
+        if (!empty($listPermission) && in_array('*', $listPermission)) {
+            // If $params is an array, set each item to true
+            if (is_array($params)) {
+                return array_fill_keys($params, true);
+            }
+            // If $params is a string, return true
+            return true;
+        }
 
-        // return in_array($params, $abilities);
-        return true; // remove this after configure table for rbac
+        // Check permissions for each item in params if it's an array
+        if (is_array($params) && !empty($listPermission)) {
+            return array_map(fn($permissionSlug) => in_array($permissionSlug, $listPermission), $params);
+        }
+
+        // If params is a string, check if it exists in listPermission
+        if (is_string($params) && !empty($listPermission)) {
+            return in_array($params, $listPermission);
+        }
+
+        return false;
     }
 }
 

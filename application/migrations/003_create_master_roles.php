@@ -55,27 +55,6 @@ class Migration_create_master_roles extends CI_Migration
 				'role_rank' 	=> '7000',
 				'role_status' 	=> '1',
 				'created_at' 	=>  timestamp(),
-			],
-			[
-				'id' 			=> '4',
-				'role_name' 	=> 'Director',
-				'role_rank' 	=> '5000',
-				'role_status' 	=> '1',
-				'created_at' 	=>  timestamp(),
-			],
-			[
-				'id' 			=> '5',
-				'role_name' 	=> 'Secretary',
-				'role_rank' 	=> '4500',
-				'role_status' 	=> '1',
-				'created_at' 	=>  timestamp(),
-			],
-			[
-				'id' 			=> '6',
-				'role_name' 	=> 'Administrator',
-				'role_rank' 	=> '4000',
-				'role_status' 	=> '1',
-				'created_at' 	=>  timestamp(),
 			]
 		];
 

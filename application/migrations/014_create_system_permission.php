@@ -35,9 +35,44 @@ class Migration_create_system_permission extends CI_Migration
 	{
 		$data = [
 			[
-				'id'	  			  => '1',
 				'role_id'	  		  => '1',
 				'abilities_id'	  	  => '1',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '2',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '3',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '4',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '5',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '6',
+				'access_device_type'  => '1',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'role_id'	  		  => '2',
+				'abilities_id'	  	  => '7',
 				'access_device_type'  => '1',
 				'created_at'		  => timestamp(),
 			],

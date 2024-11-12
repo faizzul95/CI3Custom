@@ -57,7 +57,14 @@ class Migration_create_user_profile extends CI_Migration
 				'is_main' 		  	=> '0',
 				'profile_status' 	=> '1',
 				'created_at'		=> timestamp(),
-			]
+			],
+			[
+				'user_id'	  		=> '2',
+				'role_id' 			=> '2',
+				'is_main' 		  	=> '1',
+				'profile_status' 	=> '1',
+				'created_at'		=> timestamp(),
+			],
 		];
 
 		$this->db->insert_batch($this->table_name, $data);
