@@ -86,6 +86,14 @@ if (!function_exists('segment')) {
 	}
 }
 
+if ( ! function_exists('uri_string'))
+{
+	function uri_string()
+	{
+		return get_instance()->uri->uri_string();
+	}
+}
+
 // Ci3 SESSION HELPERS SECTION
 
 if (!function_exists('setSession')) {

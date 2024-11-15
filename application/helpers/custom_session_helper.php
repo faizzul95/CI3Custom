@@ -133,10 +133,17 @@ if (!function_exists('currentUserID')) {
     }
 }
 
+if (!function_exists('currentRank')) {
+    function currentRank()
+    {
+        return getSession('roleRank');
+    }
+}
+
 if (!function_exists('isSuperadmin')) {
     function isSuperadmin()
     {
-        return currentRoleID() == 99 ? true : false;
+        return currentRoleID() == 1 && currentRank() == 9000 ? true : false;
     }
 }
 

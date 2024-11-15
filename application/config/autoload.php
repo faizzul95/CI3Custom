@@ -116,6 +116,7 @@ $autoload['helper'] = array(
 	'custom_debug',
 	'custom_profiler',
 	'custom_security',
+	'custom_rbac',
 	// 'custom_mailer',
 	// 'custom_qr_generator',
 	// 'google_authenticator',

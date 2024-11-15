@@ -23,6 +23,7 @@ class Migration_create_system_menu_navigation extends CI_Migration
 			'is_main_menu' => ['type' => 'BIGINT', 'default' => '0', 'null' => TRUE, 'comment' => ''],
 			'menu_location' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => '1', 'null' => TRUE, 'comment' => '0 - sidemenu, 1 - topmenu, 2 - Gear Setting'],
 			'is_active' => ['type' => 'TINYINT', 'constraint' => 1, 'default' => '1', 'null' => TRUE, 'comment' => '0 - Inactive, 1 - Active'],
+			'abilities_id' => ['type' => 'BIGINT', 'null' => TRUE, 'comment' => 'Refer to system_abilities'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 		]);

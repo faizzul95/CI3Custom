@@ -36,7 +36,7 @@ class Auth extends MY_Controller
                         ->where('profile_status', '1');
                 }])
                 ->with(['main_profile.roles' => function ($query) {
-                    $query->select('id, role_name')->with(['permissions' => function ($query) {
+                    $query->select('id, role_name, role_rank')->with(['permissions' => function ($query) {
                         $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
                             $query->select('id, abilities_slug');
                         }]);
@@ -117,7 +117,7 @@ class Auth extends MY_Controller
                     ->where('profile_status', '1');
             }])
             ->with(['main_profile.roles' => function ($query) {
-                $query->select('id, role_name')->with(['permissions' => function ($query) {
+                $query->select('id, role_name, role_rank')->with(['permissions' => function ($query) {
                     $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
                         $query->select('id, abilities_slug');
                     }]);
@@ -138,7 +138,7 @@ class Auth extends MY_Controller
 
         $data = $this->UserProfile_model
             ->with(['roles' => function ($query) {
-                $query->select('id, role_name')->with(['permissions' => function ($query) {
+                $query->select('id, role_name, role_rank')->with(['permissions' => function ($query) {
                     $query->select('id, role_id, abilities_id, access_device_type')->with(['abilities' => function ($query) {
                         $query->select('id, abilities_slug');
                     }]);
@@ -154,6 +154,7 @@ class Auth extends MY_Controller
             'profileID'  => hasData($data, 'id', true),
             'profileName' => hasData($data, 'roles.role_name', true),
             'roleID' => hasData($data, 'roles.id', true),
+            'roleRank' => hasData($data, 'roles.role_rank', true),
             'permissions' => getPermissionSlug(hasData($data, 'roles.permissions', true, [])),
             'isLoggedInSession' => TRUE
         ]);

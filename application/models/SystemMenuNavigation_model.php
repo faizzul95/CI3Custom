@@ -15,7 +15,8 @@ class SystemMenuNavigation_model extends MY_Model
         'menu_icon',
         'is_main_menu',
         'menu_location',
-        'is_active'
+        'is_active',
+        'abilities_id'
     ];
 
     public $_validationRules = [
@@ -26,11 +27,21 @@ class SystemMenuNavigation_model extends MY_Model
         'menu_icon' => ['field' => 'menu_icon', 'label' => 'Menu Icon', 'rules' => 'required|trim|max_length[150]'],
         'is_main_menu' => ['field' => 'is_main_menu', 'label' => 'Is Main Menu', 'rules' => 'required|trim|integer'],
         'menu_location' => ['field' => 'menu_location', 'label' => 'Menu Location', 'rules' => 'required|trim'],
-        'is_active' => ['field' => 'is_active', 'label' => 'Is Active', 'rules' => 'required|trim']
+        'is_active' => ['field' => 'is_active', 'label' => 'Is Active', 'rules' => 'required|trim'],
+        'abilities_id' => ['field' => 'abilities_id', 'label' => 'Abilities Slug', 'rules' => 'trim|integer'],
     ];
 
     function __construct()
     {
         parent::__construct();
+    }
+
+    ###################################################################
+    #                RELATIONSHIP BETWEEN MODEL                       #
+    ###################################################################
+
+    public function abilities()
+    {
+        return $this->hasOne('SystemAbilities_model', 'id', 'abilities_id');
     }
 }
