@@ -44,11 +44,15 @@ if (!function_exists('helper')) {
 }
 
 if (!function_exists('error')) {
-	function error($code = NULL, $data = NULL)
+	function error($code = NULL, $message = '', $data = NULL)
 	{
 		// get_instance()->load->view('errors/custom/error_' . $code, $data);
-		if (empty($data))
-			$data = ['title' => $code, 'message' => '', 'image' => asset('custom/images/nodata/404.png')];
+		if (empty($data)) {
+			$data = ['title' => $code, 'message' => $message, 'image' => asset('custom/images/nodata/' . $code . '.png')];
+		} else {
+			$data['title'] = $code;
+			$data['message'] = $message;
+		}
 
 		get_instance()->load->view('errors/custom/error_general', $data);
 	}
@@ -86,8 +90,7 @@ if (!function_exists('segment')) {
 	}
 }
 
-if ( ! function_exists('uri_string'))
-{
+if (! function_exists('uri_string')) {
 	function uri_string()
 	{
 		return get_instance()->uri->uri_string();

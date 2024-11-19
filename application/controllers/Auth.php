@@ -185,6 +185,7 @@ class Auth extends MY_Controller
                     'profileID'  => hasData($dataUser, 'main_profile.id', true),
                     'profileName' => hasData($dataUser, 'main_profile.roles.role_name', true),
                     'roleID' => hasData($dataUser, 'main_profile.roles.id', true),
+                    'roleRank' => hasData($dataUser, 'main_profile.roles.role_rank', true),
                     'isImpersonateSession' => $isImpersonate,
                     'permissions' => getPermissionSlug(hasData($dataUser, 'main_profile.roles.permissions', true, [])),
                     'isLoggedInSession' => TRUE

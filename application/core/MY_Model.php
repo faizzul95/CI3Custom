@@ -2085,7 +2085,7 @@ class MY_Model extends CI_Model
      */
     private function _set_connection()
     {
-        $this->_database = $this->db;
+        $this->_database = $this->load->database($this->connection, TRUE);
     }
 
     # HELPER SECTION

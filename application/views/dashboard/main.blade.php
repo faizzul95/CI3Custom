@@ -7,6 +7,7 @@
     <h1>Welcome {{ currentUserFullName() }} to {{ $title }}!</h1>
     <div id="body">
         <a href="{{ url('logout') }}" class="btn btn-sm btn-danger"> Log Out </a>
+        {!! actionBtn('create', 'createUser', null, ['class' => 'btn-success btn-sm']) !!}
     </div>
 </div>
 @else
