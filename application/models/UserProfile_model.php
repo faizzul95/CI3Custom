@@ -15,7 +15,7 @@ class UserProfile_model extends MY_Model
         'profile_status'
     ];
 
-    public $_validation = [
+    public $_validationRules = [
         'id' => ['field' => 'id', 'label' => 'Profile ID', 'rules' => 'trim|integer'],
         'user_id' => ['field' => 'user_id', 'label' => 'User ID', 'rules' => 'required|trim|integer'],
         'role_id' => ['field' => 'role_id', 'label' => 'Role ID', 'rules' => 'required|trim|integer'],

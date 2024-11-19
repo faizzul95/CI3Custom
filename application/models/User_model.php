@@ -23,7 +23,7 @@ class User_model extends MY_Model
         'email_verified_at'
     ];
 
-    public $_validation = [
+    public $_validationRules = [
         'id' => ['field' => 'id', 'label' => 'User ID', 'rules' => 'trim|integer'],
         'name' => ['field' => 'name', 'label' => 'Full Name', 'rules' => 'required|trim|max_length[255]'],
         'user_preferred_name' => ['field' => 'user_preferred_name', 'label' => 'Preferred Name', 'rules' => 'required|trim|max_length[20]'],

@@ -9,7 +9,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
  * @link      -
- * @version   0.0.9.5
+ * @version   0.0.9.6
  */
 
 class MY_Model extends CI_Model
@@ -798,9 +798,11 @@ class MY_Model extends CI_Model
      *
      * @param int $perPage Items per page
      * @param int|null $page Current page
+     * @param string|null $searchValue The search value for the specific column
+     * @param array|null $customFilter The advanced filter search
      * @return array Paginated results
      */
-    public function paginate($perPage = 10, $page = null, $searchValue = '')
+    public function paginate($perPage = 10, $page = null, $searchValue = '', $customFilter = null)
     {
         $this->cacheOff(); // Removed caching for datatable
 
@@ -817,8 +819,13 @@ class MY_Model extends CI_Model
         $totalRecords = (int) $countTempTotal->count_all_results($this->table);
         unset($countTempTotal);
 
-        // Apply filter
-        $this->_paginateFilter($columns);
+        // Apply custom filter (advanced search)
+        if (!empty($customFilter) && is_array($customFilter)) {
+            $this->_paginateFilterCondition($customFilter);
+        }
+
+        // Apply search filter
+        $this->_paginateSearchFilter($columns);
 
         // Count total rows after filter
         $countTempQuery = clone $this->_database;
@@ -879,7 +886,7 @@ class MY_Model extends CI_Model
         ];
     }
 
-    public function paginate_ajax($dataPost)
+    public function paginate_ajax($dataPost, $customFilter = null)
     {
         $this->cacheOff(); // Removed caching for datatable
 
@@ -893,8 +900,13 @@ class MY_Model extends CI_Model
         $totalRecords = (int) $countTempTotal->count_all_results($this->table);
         unset($countTempTotal);
 
-        // Apply filter
-        $this->_paginateFilter($columns);
+        // Apply custom filter (advanced search)
+        if (!empty($customFilter) && is_array($customFilter)) {
+            $this->_paginateFilterCondition($customFilter);
+        }
+
+        // Apply search filter
+        $this->_paginateSearchFilter($columns);
 
         // Count total rows after filter
         $countTempQuery = clone $this->_database;
@@ -918,7 +930,41 @@ class MY_Model extends CI_Model
         ];
     }
 
-    private function _paginateFilter($columns)
+    private function _paginateFilterCondition($condition = null)
+    {
+        if (empty($condition)) {
+            return;
+        }
+        
+        // $matchType : 1-Match Exactly (default), 2-Match Beginning, 3-Match Anywhere 
+        if (_isMultidimensional($condition)) {
+            $matchType = $condition['filter_type'] ?? 1; // Default to exact match
+            $condition = $condition['filter'] ?? [];
+        } else {
+            $matchType = 1; // Default to exact match
+        }
+
+        $this->_database->group_start();
+
+        foreach ($condition as $column => $value) {
+            if (!empty($value)) {
+                switch ($matchType) {
+                    case 2:
+                        $this->_database->like($column, $value, 'after'); // `column` LIKE 'value%' ESCAPE '!'
+                        break;
+                    case 3:
+                        $this->_database->like($column, $value); // `column` LIKE '%value%' ESCAPE '!'
+                        break;
+                    default:
+                        $this->_database->where($column, $value);
+                }
+            }
+        }
+
+        $this->_database->group_end();
+    }
+
+    private function _paginateSearchFilter($columns)
     {
         $searchValue = $this->_paginateSearchValue;
 
@@ -1455,7 +1501,7 @@ class MY_Model extends CI_Model
             // Prepare data for batch update
             $batchData = [];
             foreach ($data as $items) {
-                $item = $this->filterData($items);
+                $item = $this->filterData($items, $keyColumn);
                 if ($this->_runValidation($item, $validationRules, 'update')) {
 
                     if (!isset($item[$keyColumn]) || empty($item[$keyColumn])) {
@@ -1706,11 +1752,21 @@ class MY_Model extends CI_Model
      * Filter data based on fillable and protected fields
      *
      * @param array $data Data to filter
+     * @param mixed $includeKey column key of the record to be include in the $data
      * @return array Filtered data
      */
-    private function filterData($data)
+    private function filterData($data, $includeKey = null)
     {
         if (!empty($data) && is_array($data)) {
+
+            if (!empty($includeKey)) {
+                $this->fillable[] = $includeKey;
+                
+                if (isset($this->protected[$includeKey])) {
+                    unset($this->protected[$includeKey]);
+                }
+            }
+
             if ($this->fillable !== null) {
                 $data = array_intersect_key($data, array_flip($this->fillable));
             }
@@ -2029,7 +2085,7 @@ class MY_Model extends CI_Model
      */
     private function _set_connection()
     {
-        $this->_database = $this->load->database($this->connection, TRUE);
+        $this->_database = $this->db;
     }
 
     # HELPER SECTION
