@@ -937,7 +937,7 @@ class MY_Model extends CI_Model
         }
         
         // $matchType : 1-Match Exactly (default), 2-Match Beginning, 3-Match Anywhere 
-        if (_isMultidimensional($condition)) {
+        if ($this->_isMultidimensional($condition)) {
             $matchType = $condition['filter_type'] ?? 1; // Default to exact match
             $condition = $condition['filter'] ?? [];
         } else {
