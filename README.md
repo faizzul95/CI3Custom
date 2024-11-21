@@ -399,6 +399,29 @@ class Any_model extends MY_Model
     }
 }
 
+class Related1_model extends MY_Model
+{
+    public $table = 'relatedTableName';
+    public $primaryKey = 'id'; 
+    
+    public $fillable = [
+        'columnR1',
+        'columnR2',
+        'columnR3',
+        'columnR4'
+    ];
+
+    public function __construct()
+    {
+        parent::__construct();
+    }
+
+    public function func1()
+    {
+        return $this->hasMany('Related2_model', 'anyPK_id', 'id');
+    }
+}
+
 # CONTROLLER
 
 class <ClassName> extends CI_Controller
@@ -409,10 +432,19 @@ class <ClassName> extends CI_Controller
         $this->load->model('any_model');
     }
 
-    public function exampleWhereHasOnly()
+    public function exampleWhereHasSingle()
     {
         $data = $this->any_model->whereHas('related1', function ($query) {
                     $query->where('columnRelated1', 'value');
+                })->get();
+
+        print_r($data);
+    }
+
+    public function exampleWhereHasNested()
+    {
+        $data = $this->any_model->whereHas('related1.func1', function ($query) {
+                    $query->where('relatedTableName.columnR3', 'value');
                 })->get();
 
         print_r($data);

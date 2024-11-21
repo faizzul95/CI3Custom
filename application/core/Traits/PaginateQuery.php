@@ -162,24 +162,33 @@ trait PaginateQuery
             $matchType = 1; // Default to exact match
         }
 
-        $this->_database->group_start();
+        $filterData = array_reduce(array_keys($condition), function ($carry, $key) use ($condition) {
+            if (!empty($condition[$key]) || $condition[$key] == 0) {
+                $carry[$key] = $condition[$key];
+            }
+            return $carry;
+        }, []);
 
-        foreach ($condition as $column => $value) {
-            if (!empty($value)) {
-                switch ($matchType) {
-                    case 2:
-                        $this->_database->like($column, $value, 'after'); // `column` LIKE 'value%' ESCAPE '!'
-                        break;
-                    case 3:
-                        $this->_database->like($column, $value); // `column` LIKE '%value%' ESCAPE '!'
-                        break;
-                    default:
-                        $this->_database->where($column, $value);
+        if (!empty($filterData)) {
+            $this->_database->group_start();
+    
+            foreach ($condition as $column => $value) {
+                if (!empty($value) || $value == 0) {
+                    switch ($matchType) {
+                        case 2:
+                            $this->_database->like($column, $value, 'after'); // `column` LIKE 'value%' ESCAPE '!'
+                            break;
+                        case 3:
+                            $this->_database->like($column, $value); // `column` LIKE '%value%' ESCAPE '!'
+                            break;
+                        default:
+                            $this->_database->where($column, $value);
+                    }
                 }
             }
+    
+            $this->_database->group_end();
         }
-
-        $this->_database->group_end();
     }
 
     private function _paginateSearchFilter($columns)

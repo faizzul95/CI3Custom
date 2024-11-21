@@ -11,53 +11,144 @@ trait EagerQuery
 
     public function whereHas($relation, \Closure $callback = null)
     {
-        if (!method_exists($this, $relation)) {
-            throw new \Exception("Relation method {$relation} does not exist.");
+        if (empty($relation)) {
+            return $this;
         }
 
-        $relationConfig = $this->{$relation}();
-
-        if (!isset($relationConfig->relations)) {
-            throw new \Exception("Invalid relation configuration.");
-        }
-
-        foreach ($relationConfig->relations as $modelName => $config) {
-            if (!$this->load->is_model_loaded($modelName)) {
-                $this->load->model($modelName);
-            }
-
-            $relationModel = $this->{$modelName};
-            $relationTable = $relationModel->table;
-
-            // Build the subquery
-            $this->_database->reset_query();
-            $subquery = $this->_database;
-
-            if ($callback) {
-                $callback($relationModel);
-                $subquery = $relationModel->_database;
-            }
-
-            // Add the relation condition based on type
-            switch ($config['type']) {
-                case 'hasMany':
-                case 'hasOne':
-                    $subquery->where("{$relationTable}.{$config['foreignKey']} = {$this->table}.{$config['localKey']}");
-                    break;
-                case 'belongsTo':
-                    $subquery->where("{$relationTable}.{$config['ownerKey']} = {$this->table}.{$config['foreignKey']}");
-                    break;
-            }
-
-            // Add exists clause
-            $existsQuery = $subquery->from($relationTable)->get_compiled_select();
-            $this->_database->where("EXISTS ({$existsQuery})");
+        if (str_contains($relation, '.')) {
+            $this->_applyNestedRelation($relation, $callback, 'AND');
+        } else {
+            $this->_applySingleRelation($relation, $callback, 'AND');
         }
 
         return $this;
     }
 
     public function orWhereHas($relation, \Closure $callback = null)
+    {
+        if (empty($relation)) {
+            return $this;
+        }
+
+        if (str_contains($relation, '.')) {
+            $this->_applyNestedRelation($relation, $callback, 'OR');
+        } else {
+            $this->_applySingleRelation($relation, $callback, 'OR');
+        }
+
+        return $this;
+    }
+
+    private function _applyNestedRelation($relation, \Closure $callback = null, $boolean = 'AND')
+    {
+        // Split the relation into parts
+        $parts = explode(".", $relation);
+        $currentModel = $this;
+        $existsQuery = null;
+
+        // Reset and initialize the database query
+        $this->_database->reset_query();
+        $subquery = $this->_database;
+
+        $totalNested = count($parts) - 1;
+        $totalNestedProcess = 0;
+        $relationMainTable = '';
+        $lastRelationModel = null;
+
+        foreach ($parts as $method) {
+            if (!method_exists($currentModel, $method)) {
+                throw new \Exception("Relation method {$method} does not exist.");
+            }
+
+            $relationConfig = $currentModel->{$method}();
+
+            if (!isset($relationConfig->relations)) {
+                throw new \Exception("Invalid relation configuration.");
+            }
+
+            foreach ($relationConfig->relations as $modelName => $config) {
+                if (!$this->load->is_model_loaded($modelName)) {
+                    $this->load->model($modelName);
+                }
+
+                $relationModel = $this->{$modelName};
+                $relationTable = $relationModel->table;
+
+                $joinType = ($boolean === 'AND') ? 'INNER' : 'LEFT';
+
+                if ($totalNestedProcess == 0) {
+                    $relationMainTable = $relationTable;
+                    switch ($config['type']) {
+                        case 'hasMany':
+                        case 'hasOne':
+                            $subquery->where("{$relationTable}.{$config['foreignKey']} = {$this->table}.{$config['localKey']}");
+                            break;
+                        case 'belongsTo':
+                            $subquery->where("{$relationTable}.{$config['ownerKey']} = {$this->table}.{$config['foreignKey']}");
+                            break;
+                    }
+                } else {
+                    switch ($config['type']) {
+                        case 'hasMany':
+                        case 'hasOne':
+                            $this->_database->join(
+                                "{$relationTable} AS {$relationTable}",
+                                "{$relationTable}.{$config['foreignKey']} = {$currentModel->table}.{$config['localKey']}",
+                                $joinType
+                            );
+                            break;
+                        case 'belongsTo':
+                            $this->_database->join(
+                                "{$relationTable} AS {$relationTable}",
+                                "{$relationTable}.{$config['ownerKey']} = {$currentModel->table}.{$config['foreignKey']}",
+                                $joinType
+                            );
+                            break;
+                    }
+                }
+
+                if ($relationModel->softDelete) {
+                    switch ($relationModel->_trashed) {
+                        case 'only':
+                            $subquery->where($relationModel->table . '.' . $relationModel->deleted_at . ' IS NOT NULL');
+                            break;
+                        case 'without':
+                            $subquery->where($relationModel->table . '.' . $relationModel->deleted_at . ' IS NULL');
+                            break;
+                        case 'with':
+                            break;
+                    }
+                }
+
+                $currentModel = $relationModel;
+
+                if ($totalNestedProcess == $totalNested) {
+                    $lastRelationModel = $relationModel;
+                }
+            }
+
+            $totalNestedProcess++;
+        }
+
+        // Apply callback using the last relation model
+        if ($callback && $lastRelationModel) {
+            // Execute the modified callback with the subquery
+            $callback($subquery);
+        }
+
+        // Construct the EXISTS query
+        $existsQuery = $subquery->select('1')->from($relationMainTable)->get_compiled_select();
+
+        if (!empty($existsQuery)) {
+            if ($boolean === 'AND') {
+                $this->_database->where("EXISTS ({$existsQuery})");
+            } else {
+                $this->_database->or_where("EXISTS ({$existsQuery})");
+            }
+        }
+    }
+
+    private function _applySingleRelation($relation, \Closure $callback = null, $boolean = 'AND')
     {
         if (!method_exists($this, $relation)) {
             throw new \Exception("Relation method {$relation} does not exist.");
@@ -97,12 +188,29 @@ trait EagerQuery
                     break;
             }
 
-            // Add exists clause with OR condition
-            $existsQuery = $subquery->from($relationTable)->get_compiled_select();
-            $this->_database->or_where("EXISTS ({$existsQuery})");
-        }
+            if ($relationModel->softDelete) {
+                switch ($relationModel->_trashed) {
+                    case 'only':
+                        $subquery->where($relationModel->table . '.' . $relationModel->deleted_at . ' IS NOT NULL');
+                        break;
+                    case 'without':
+                        $subquery->where($relationModel->table . '.' . $relationModel->deleted_at . ' IS NULL');
+                        break;
+                    case 'with':
+                        break;
+                }
+            }
 
-        return $this;
+            // Construct the EXISTS query
+            $existsQuery = $subquery->select('1')->from($relationTable)->get_compiled_select();
+
+            // Ensure we are querying the `users` table in the main query
+            if ($boolean === 'AND') {
+                $this->_database->where("EXISTS ({$existsQuery})");
+            } else {
+                $this->_database->or_where("EXISTS ({$existsQuery})");
+            }
+        }
     }
 
     # RELATION (MODEL) SECTION
