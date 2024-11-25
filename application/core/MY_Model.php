@@ -12,7 +12,7 @@ use App\Core\Traits\PaginateQuery;
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
  * @link      -
- * @version   0.0.9.8
+ * @version   0.0.9.9
  */
 
 class MY_Model extends CI_Model
@@ -800,7 +800,7 @@ class MY_Model extends CI_Model
     }
 
     /**
-     * Set override validation rules
+     * Set override validation rules, use for both insert AND update
      *
      * @param array $validation This will override all the validation set in the model.
      * @return $this
@@ -816,7 +816,7 @@ class MY_Model extends CI_Model
     }
 
     /**
-     * Set custom validation rules
+     * Set custom validation rules, use for both insert AND update
      *
      * @param array $validation This will set the custom validation or the addition rules.
      * @return $this
@@ -832,6 +832,52 @@ class MY_Model extends CI_Model
         }
 
         $this->_validationCustomize = $validation;
+        return $this;
+    }
+
+    /**
+     * Set custom update validation rules for the insert/create, set $updateRules to true to replace existing key with the new rules.
+     *
+     * @param array $validation This will set the custom validation or the addition rules.
+     * @param boolean $updateRules Indicate updating validation rules from the existing rules.
+     * @return $this
+     */
+    public function setCreateValidationRules($validation, $updateRules = false)
+    {
+        if (!is_array($validation)) {
+            throw new Exception('Custom create/insert validation rules must be an array.');
+        }
+
+        if ($updateRules) {
+            $existingValidation = !empty($this->_insertValidation) ? $this->_insertValidation : $this->_validationRules;
+            $validation = array_merge($existingValidation, $validation);
+        }
+    
+        $this->_insertValidation = $validation;
+
+        return $this;
+    }
+
+    /**
+     * Set custom update validation rules for the update/patch, set $updateRules to true to replace existing key with the new rules.
+     *
+     * @param array $validation This will set the custom validation or the addition rules.
+     * @param boolean $updateRules Indicate updating validation rules from the existing rules.
+     * @return $this
+     */
+    public function setPatchValidationRules($validation, $updateRules = false)
+    {
+        if (!is_array($validation)) {
+            throw new Exception('Custom patch/update validation rules must be an array.');
+        }
+
+        if ($updateRules) {
+            $existingValidation = !empty($this->_updateValidation) ? $this->_updateValidation : $this->_validationRules;
+            $validation = array_merge($existingValidation, $validation);
+        }
+    
+        $this->_updateValidation = $validation;
+
         return $this;
     }
 
@@ -866,7 +912,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', 'insertOrUpdate error: ' . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to insert new data',
                 'action' => 'create',
@@ -925,7 +971,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', 'Create error: ' . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to insert new data',
                 'action' => 'create',
@@ -999,7 +1045,7 @@ class MY_Model extends CI_Model
             $this->_database->trans_rollback();
             log_message('error', "Batch creation error in table {$this->table}: " . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to create data',
                 'action' => 'create'
@@ -1062,7 +1108,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', "Update error for id ({$id}) in table {$this->table}: "  . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to update data',
                 'action' => 'update'
@@ -1095,7 +1141,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', "Update error for patchAll: "  . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to update data',
                 'action' => 'update'
@@ -1175,7 +1221,7 @@ class MY_Model extends CI_Model
             $this->_database->trans_rollback(); // Rollback the transaction
             log_message('error', "Batch update error in table {$this->table}: " . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to update data',
                 'action' => 'update'
@@ -1231,7 +1277,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', "Delete error for id ({$id}) in table {$this->table}: " . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to delete records',
                 'action' => 'delete'
@@ -1281,7 +1327,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', "Delete error for multi data in table {$this->table}: " . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to delete records',
                 'action' => 'delete'
@@ -1324,7 +1370,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', 'Force Delete Error: ' . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to removed data',
                 'action' => 'delete',
@@ -1367,7 +1413,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', 'Restore Error: ' . $e->getMessage());
             return [
-                'code' => 500,
+                'code' => 422,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to restore data',
                 'action' => 'restore',

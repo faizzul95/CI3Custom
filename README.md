@@ -1845,7 +1845,9 @@ class <ClassName> extends CI_Controller
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ignoreValidation()`        | Ignores all validation rules for inserts and updates.                                                                                           |
 | `setValidationRules()`      | Sets or overrides existing validation rules for the model on the fly.                                                                           |
-| `setCustomValidationRules()`| Adds or changes existing validation rules that are already set in the model.                                                                    |
+| `setCustomValidationRules()`| Adds or changes existing validation rules that are already set in the model. Will be used for both update & insert function.                    |
+| `setCreateValidationRules()`| Temporary sets custom update validation rules for create/insert operations, optionally merging with existing rules if specified.                |
+| `setPatchValidationRules()` | Temporary sets custom update validation rules for patch/update operations, optionally merging with existing rules if specified.                 |
 
 <details> 
 <summary> Example Usage of ignoreValidation() </summary>
@@ -2049,6 +2051,99 @@ class <ClassName> extends CI_Controller
                         'column3' => ['field' => 'column3', 'label' => 'Column 3', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 3 adalah wajib.']] // will add new validation for column 3
                     ])
                     ->patch($dataToUpdate, $id);
+    }
+}
+```
+</details> 
+
+
+<details> 
+<summary> Example Usage of setCreateValidationRules($rules, $updateRules) / setPatchValidationRules($rules, $updateRules) </summary>
+
+#### Description
+<b>Parameters:</b><br>
+`$rules` (array): An array containing the set of rules to change. <br>
+`$updateRules` (bool): An indicator to update the existing or a new set of rules. Set 'true' to update the existing rules in model. 
+<br>
+  
+```php
+<?php
+
+# MODEL
+
+if (!defined('BASEPATH'))
+    exit('No direct script access allowed');
+
+class Any_model extends MY_Model
+{
+    public $table = 'anyTable';
+    public $primaryKey = 'id'; 
+    
+    public $fillable = [
+        'column1',
+        'column2',
+        'column3',
+        'column4'
+    ];
+
+    protected $_validation = [
+        'column1' => ['field' => 'column1', 'label' => 'Column 1', 'rules' => 'required'], // Only have required
+        'column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim'] 
+    ];
+
+    public function __construct()
+    {
+        parent::__construct();
+    }
+}
+
+# CONTROLLER
+
+if (!defined('BASEPATH'))
+    exit('No direct script access allowed');
+
+class <ClassName> extends CI_Controller
+{
+    public function __construct()
+    {
+        parent::__construct();
+        $this->load->model('any_model');
+    }
+
+    public function exampleCreateValidationRules()
+    {
+        return $this->any_model
+                    ->setCreateValidationRules([
+                        'column2' => ['field' => 'column2', 'label' => 'Column 2', 'rules' => 'required|trim|is_unique'] // will only validate the email as unique on the create operations.
+                    ])
+                    ->insertOrUpdate(['id', $id], $dataToInsert);
+    }
+
+    public function examplePatchValidationRules_newRules()
+    {
+        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
+
+        return $this->any_model
+                    ->setPatchValidationRules($rules) // will only replace the rules during patch operations, column1 will be removed and the column4 rules will be updated.
+                    ->insertOrUpdate(['id', $id], $dataToInsert);
+    }
+
+    public function examplePatchValidationRules_updateRules()
+    {
+        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
+
+        return $this->any_model
+                    ->setPatchValidationRules($rules, true) // If set to true, it will update the existing column4 from $_validation in the model with new rules. The column1 will remain unchange. It will only validate the email as valid during update operations. It will not validate during the create operation.
+                    ->insertOrUpdate(['id', $id], $dataToInsert);
+    }
+
+    public function examplePatchValidation_invalidUsed()
+    {
+        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
+
+        return $this->any_model
+                    ->setPatchValidationRules($rules, true) // nothing will happen since it is the create operation.
+                    ->create($dataToInsert);
     }
 }
 ```
