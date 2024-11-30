@@ -12,7 +12,7 @@ use App\Core\Traits\PaginateQuery;
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
  * @link      -
- * @version   0.0.9.9
+ * @version   0.1.0.1
  */
 
 class MY_Model extends CI_Model
@@ -852,7 +852,7 @@ class MY_Model extends CI_Model
             $existingValidation = !empty($this->_insertValidation) ? $this->_insertValidation : $this->_validationRules;
             $validation = array_merge($existingValidation, $validation);
         }
-    
+
         $this->_insertValidation = $validation;
 
         return $this;
@@ -875,7 +875,7 @@ class MY_Model extends CI_Model
             $existingValidation = !empty($this->_updateValidation) ? $this->_updateValidation : $this->_validationRules;
             $validation = array_merge($existingValidation, $validation);
         }
-    
+
         $this->_updateValidation = $validation;
 
         return $this;
@@ -949,11 +949,12 @@ class MY_Model extends CI_Model
 
                 $success = $this->_database->insert($this->table, $data);
 
-                if (!$success) {
+                if (!is_array($success) && !$success) {
                     throw new Exception('Failed to insert record');
                 }
 
-                $insertId = $this->_database->insert_id();
+                $insertId = is_array($success) && isset($success['id']) ? $success['id'] : $this->_database->insert_id();
+
                 $this->resetQuery();
 
                 $this->deleteCache();
@@ -971,7 +972,7 @@ class MY_Model extends CI_Model
         } catch (Exception $e) {
             log_message('error', 'Create error: ' . $e->getMessage());
             return [
-                'code' => 422,
+                'code' => 500,
                 'error' => $e->getMessage(),
                 'message' => 'Failed to insert new data',
                 'action' => 'create',
@@ -1137,7 +1138,7 @@ class MY_Model extends CI_Model
                 $updateData[] = $data;
             }
 
-            return $this->batchPatch($updateData);
+            return $this->batchPatch($updateData, $this->primaryKey);
         } catch (Exception $e) {
             log_message('error', "Update error for patchAll: "  . $e->getMessage());
             return [
@@ -1430,23 +1431,25 @@ class MY_Model extends CI_Model
      */
     private function filterData($data, $includeKey = null)
     {
-        if (!empty($data) && is_array($data)) {
+        if (empty($data) && !is_array($data)) {
+            return $data;
+        }
 
-            if (!empty($includeKey)) {
-                $this->fillable[] = $includeKey;
+        if (!empty($includeKey)) {
+            $this->fillable[] = $includeKey;
 
-                if (isset($this->protected[$includeKey])) {
-                    unset($this->protected[$includeKey]);
-                }
+            // Check if $includeKey exists in $this->protected
+            if (($key = array_search($includeKey, $this->protected)) !== false) {
+                unset($this->protected[$key]);
             }
+        }
 
-            if ($this->fillable !== null) {
-                $data = array_intersect_key($data, array_flip($this->fillable));
-            }
+        if (!empty($this->fillable)) {
+            $data = array_intersect_key($data, array_flip($this->fillable));
+        }
 
-            if ($this->protected !== null) {
-                $data = array_diff_key($data, array_flip($this->protected));
-            }
+        if (!empty($this->protected)) {
+            $data = array_diff_key($data, array_flip($this->protected));
         }
 
         return $data;
@@ -2239,8 +2242,13 @@ class MY_Model extends CI_Model
         $appendMethods = $this->getAppendMethods();
 
         if ($isMulti) {
-            foreach ($resultQuery as &$item) {
-                $this->appendToSingle($item, $appendMethods);
+            foreach ($resultQuery as $key => &$item) {
+                if (!is_string($key)) {
+                    $this->appendToSingle($item, $appendMethods);
+                } else {
+                    $this->appendToSingle($resultQuery, $appendMethods);
+                    break;
+                }
             }
         } else {
             $this->appendToSingle($resultQuery, $appendMethods);
