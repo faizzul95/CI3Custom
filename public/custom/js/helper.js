@@ -220,18 +220,18 @@ const isset = (variable) => {
  * const numberResult = trimData(6); // numberResult return as is
  */
 const trimData = (text, mode = 'a') => {
-    if (typeof text !== 'string') return text;
+	if (typeof text !== 'string') return text;
 
-    switch (mode) {
-        case 'a':
-            return text.trim();
-        case 'l':
-            return text.trimStart ? text.trimStart() : text.trimLeft();
-        case 'r':
-            return text.trimEnd ? text.trimEnd() : text.trimRight();
-        default:
-            throw new Error('Invalid mode specified. Use "a" for both, "l" for left, "r" for right trimming.');
-    }
+	switch (mode) {
+		case 'a':
+			return text.trim();
+		case 'l':
+			return text.trimStart ? text.trimStart() : text.trimLeft();
+		case 'r':
+			return text.trimEnd ? text.trimEnd() : text.trimRight();
+		default:
+			throw new Error('Invalid mode specified. Use "a" for both, "l" for left, "r" for right trimming.');
+	}
 };
 
 /**
@@ -293,14 +293,14 @@ const hasData = (data = null, arrKey = null, returnData = false, defaultValue = 
  * @returns {string} - The string with placeholders replaced by data values.
  */
 const replaceTextWithData = (string = '', data, delimiter = '%') => {
-    // Construct regular expression pattern based on the delimiter
-    const pattern = new RegExp(`${delimiter}([^${delimiter}]+)${delimiter}`, 'g');
-	
-    // Use regular expression to match placeholders
-    return string.replace(pattern, (match, key) => {
-        // If a data value exists for the key, replace with the value; otherwise, keep the original placeholder
-        return data[key] || match;
-    });
+	// Construct regular expression pattern based on the delimiter
+	const pattern = new RegExp(`${delimiter}([^${delimiter}]+)${delimiter}`, 'g');
+
+	// Use regular expression to match placeholders
+	return string.replace(pattern, (match, key) => {
+		// If a data value exists for the key, replace with the value; otherwise, keep the original placeholder
+		return data[key] || match;
+	});
 };
 
 /**
@@ -1730,7 +1730,9 @@ const submitApi = async (url, dataObj, formID = null, reloadFunction = null, per
 				.catch(error => {
 
 					log('ERROR SubmitApi 1');
-					let textMessage = isset(error.response.data.message) ? error.response.data.message : error.response.statusText;
+					let res = error.response;
+					let textMessage = hasData(res, 'response.message', true, hasData(res, 'error.response.data.message', true, error.response.statusText));
+					// let textMessage = isset(error.response.data.message) ? error.response.data.message : error.response.statusText;
 
 					if (isError(error.response.status)) {
 						noti(error.response.status, textMessage);
@@ -1989,7 +1991,7 @@ const getImageSizeBase64 = (base64, type = 'b') => {
 
 const noSelectDataLeft = (text = 'Type', filesName = '5.png') => {
 
-	var fileImage = $('meta[name="base_url"]').attr('content') + 'public/custom/images/nodata/' + filesName;
+	var fileImage = base_url() + 'public/custom/images/nodata/' + filesName;
 
 	return "<div id='nodataSelect' class='col-lg-12 mb-4 mt-2'>\
             <center>\
@@ -2006,7 +2008,7 @@ const noSelectDataLeft = (text = 'Type', filesName = '5.png') => {
 
 const nodata = (text = true, filesName = '4.png') => {
 
-	var fileImage = $('meta[name="base_url"]').attr('content') + 'public/custom/images/nodata/' + filesName;
+	var fileImage = base_url() + 'public/custom/images/nodata/' + filesName;
 	var showText = (text) ? '' : 'style="display:none"';
 	var suggestion = (text) ? '' : '"display:none!important"';
 
@@ -2032,7 +2034,7 @@ const nodata = (text = true, filesName = '4.png') => {
 
 const nodataAccess = (filesName = '403.png') => {
 
-	var fileImage = $('meta[name="base_url"]').attr('content') + 'public/custom/images/nodata/' + filesName;
+	var fileImage = base_url() + 'public/custom/images/nodata/' + filesName;
 	return "<div id='nodataAccess' class='col-lg-12 mb-4 mt-2'>\
             <center>\
                 <img src='" + fileImage + "' class='img-fluid mb-3' width='30%'>\
@@ -2074,7 +2076,7 @@ const skeletonTableOnly = (totalData = 5) => {
 
 const skeletonTable = (hasButton = true, hasFilter = null, buttonRefresh = true) => {
 
-	let totalData = 3;
+	let totalData = 5;
 	let body = '';
 
 	for (let index = 0; index < totalData; index++) {
@@ -2090,7 +2092,7 @@ const skeletonTable = (hasButton = true, hasFilter = null, buttonRefresh = true)
 	let filters = '';
 	if (hasData(hasFilter)) {
 		for (let index = 0; index < hasFilter; index++) {
-			filters += '<select class="form-control form-control-sm float-end me-2 skeleton" style="width: 12%!important;"></select>';
+			filters += '<select class="form-control form-control-sm float-end me-2 skeleton" style="width: 10%!important;"></select>';
 		}
 	}
 
@@ -2270,7 +2272,7 @@ const generateServerDt = (id, url = null, nodatadiv = 'nodatadiv', dataObj = nul
 
 	let ajaxConfig = {
 		type: 'POST',
-		url: $('meta[name="base_url"]').attr('content') + url,
+		url: base_url() + url,
 		dataType: "JSON",
 		data: dataSent,
 		headers: {
@@ -2301,23 +2303,23 @@ const generateServerDt = (id, url = null, nodatadiv = 'nodatadiv', dataObj = nul
 		"searching": true,
 		"ajax": ajaxConfig,
 		"language": {
-			"searchPlaceholder": 'Search...',
-			"sSearch": '',
-			// "lengthMenu": '_MENU_ item / page',
+			// "searchPlaceholder": 'Carian...',
+			// "sSearch": '',
+			// "lengthMenu": '_MENU_ item / halaman',
 			// "paginate": {
-			// 	"first": "First",
-			// 	"last": "The End",
-			// 	"previous": "Previous",
-			// 	"next": "Next"
+			// 	"first": "Utama",
+			// 	"last": "Terakhir",
+			// 	"previous": "Sebelum",
+			// 	"next": "Selepas"
 			// },
-			// "info": "Showing _START_ to _END_ of _TOTAL_ items",
+			// "info": "Menunjukkan _START_ hingga _END_ daripada _TOTAL_ entri",
 			// "emptyTable": "No data is available in the table",
 			// "info": "Showing _START_ to _END_ of _TOTAL_ items",
-			// "infoEmpty": "Showing 0 to 0 of 0 items",
-			// "infoFiltered": "(filtered from _MAX_ number of items)",
-			// "zeroRecords": "No matching records",
-			// "processing": "<span class='text-danger font-weight-bold font-italic'> Processing ... Please wait a moment.. ",
-			// "loadingRecords": "Loading...",
+			// "infoEmpty": "Menunjukkan 0 hingga 0 daripada 0 entri",
+			// "infoFiltered": "(ditapis daripada _MAX_ bilangan item)",
+			// "zeroRecords": "Tiada rekod ditemui",
+			// "processing": "<span class='text-danger font-weight-bold font-italic'> Sedang diproses... Sila tunggu sebentar... ",
+			// "loadingRecords": "Proses...",
 			// "infoPostFix": "",
 			// "thousands": ",",
 		},
@@ -2408,4 +2410,421 @@ const exportExcelHelper = async (method = 'get', url, filter = null, config = nu
 	setTimeout(function () {
 		loadingBtn(btnID, false, btnText);
 	}, 450);
+}
+
+// DYNAMIC LOAD FILE/PAGE USING HTTP CALL
+
+/**
+ * Load component content with advanced features and skeleton loader support
+ * @param {string} fileName - Path or url (route) to the file to load
+ * @param {string} idToLoad - ID of the element to load content into
+ * @param {Object} options - Advanced configuration options
+ * @returns {Promise<Object>} Loading result details
+ */
+const loadFileContent = async (fileName, idToLoad, options = {}) => {
+	// Default configuration
+	const defaultConfig = {
+		// Function to call after loading
+		functionToLoad: null,
+		// Parameters to pass to the function
+		functionParams: [],
+		// Timeout for loading (in milliseconds)
+		timeout: 10000,
+		// Content type to expect
+		contentType: 'html',
+		// Callback for before loading
+		beforeLoad: null,
+		// Callback for after loading
+		afterLoad: null,
+		// Skeleton loader function
+		skeletonLoader: null,
+		// Error handling strategy
+		errorHandling: {
+			showErrorMessage: true,
+			errorClass: 'alert alert-danger',
+			fallbackContent: 'Unable to load content'
+		},
+		// Caching options
+		cache: {
+			enabled: false,
+			duration: 5 * 60 * 1000 // 5 minutes
+		}
+	};
+
+	// Merge default config with provided options
+	const config = {
+		...defaultConfig,
+		...options,
+		errorHandling: {
+			...defaultConfig.errorHandling,
+			...(options.errorHandling || {})
+		},
+		cache: {
+			...defaultConfig.cache,
+			...(options.cache || {})
+		}
+	};
+
+	// Get the target element
+	const $targetElement = $('#' + idToLoad);
+
+	try {
+		// Execute before load callback if provided
+		if (typeof config.beforeLoad === 'function') {
+			config.beforeLoad($targetElement);
+		}
+
+		// Clear previous content
+		$targetElement.empty();
+
+		// Show skeleton loader if provided
+		if (typeof config.skeletonLoader === 'function') {
+			$targetElement.html(config.skeletonLoader());
+		} else {
+			// Default loading indicator
+			$targetElement.html(`
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `);
+		}
+
+		// Check cache first if enabled
+		const cacheKey = `loadComponentContent_${fileName}`;
+		if (config.cache.enabled) {
+			const cachedData = localStorage.getItem(cacheKey);
+			const cachedTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+
+			if (cachedData && cachedTimestamp) {
+				const currentTime = new Date().getTime();
+				if (currentTime - parseInt(cachedTimestamp) < config.cache.duration) {
+					$targetElement.html(cachedData);
+
+					// Call function if specified
+					if (config.functionToLoad && typeof window[config.functionToLoad] === 'function') {
+						window[config.functionToLoad](...config.functionParams);
+					}
+
+					return {
+						status: 'success',
+						source: 'cache',
+						element: $targetElement
+					};
+				}
+			}
+		}
+
+		// Create a timeout promise
+		const fetchWithTimeout = (url, options = {}, timeout = config.timeout) => {
+			return Promise.race([
+				fetch(url, options),
+				new Promise((_, reject) =>
+					setTimeout(() => reject(new Error('Request timed out')), timeout)
+				)
+			]);
+		};
+
+		// Fetch content with timeout
+		const response = await fetchWithTimeout(fileName, {
+			method: 'GET',
+			headers: {
+				'Content-Type': config.contentType === 'html' ?
+					'text/html' : 'application/json'
+			}
+		});
+
+		// Check response
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+
+		// Parse content based on type
+		const content = config.contentType === 'html' ?
+			await response.text() :
+			await response.json();
+
+		// Clear loading indicator and set content
+		$targetElement.html(content);
+
+		// Cache content if enabled
+		if (config.cache.enabled) {
+			localStorage.setItem(cacheKey, content);
+			localStorage.setItem(`${cacheKey}_timestamp`, new Date().getTime().toString());
+		}
+
+		// Call function if specified
+		if (config.functionToLoad && typeof window[config.functionToLoad] === 'function') {
+			window[config.functionToLoad](...config.functionParams);
+		}
+
+		// Execute after load callback if provided
+		if (typeof config.afterLoad === 'function') {
+			config.afterLoad($targetElement, content);
+		}
+
+		return {
+			status: 'success',
+			source: 'fetch',
+			element: $targetElement,
+			content: content
+		};
+
+	} catch (error) {
+		console.error('Error loading component:', error);
+
+		// Error handling
+		if (config.errorHandling.showErrorMessage) {
+			$targetElement.html(`
+                <div class="${config.errorHandling.errorClass}">
+                    ${config.errorHandling.fallbackContent}: ${error.message}
+                </div>
+            `);
+		}
+
+		return {
+			status: 'error',
+			error: error,
+			element: $targetElement
+		};
+	}
+}
+
+/**
+ * Load content into a modal or offcanvas component
+ * @param {string} fileName - Path to the file to load
+ * @param {string} idToLoad - Base ID for the content container
+ * @param {string} [sizeModal='lg'] - Size of the modal/offcanvas
+ * @param {string} [title='Default Title'] - Title of the modal/offcanvas
+ * @param {Object|null} [dataArray=null] - Additional data to pass
+ * @param {string} [typeModal='modal'] - Type of container (modal or offcanvas)
+ * @returns {Promise} Ajax promise
+ */
+const loadFileModalContent = async (fileName, idToLoad, sizeModal = 'lg', title = 'Default Title', dataArray = null, typeModal = 'modal') => {
+	// Determine the content container ID
+	const idContent = typeModal === 'modal' ?
+		`${idToLoad}-${sizeModal}` :
+		'offCanvasContent-right';
+
+	// Reset all potential modal/offcanvas content areas
+	const listSize = ['xs', 'sm', 'md', 'lg', 'xl', 'fullscreen'];
+	listSize.forEach(size => {
+		const idModalContent = `${idToLoad}-${size}`;
+		$(`#${idModalContent}`).empty();
+	});
+
+	// Clear the main content area
+	$(`#${idContent}`).empty();
+
+	// Prepare AJAX request
+	return $.ajax({
+		type: "POST",
+		url: `${base_url()}public/custom/php/general.php`,
+		data: {
+			baseUrl: base_url(),
+			fileName: fileName,
+			dataArray: dataArray
+		},
+		headers: {
+			"Authorization": `Bearer ${Cookies.get(csrf_cookie_name)}`,
+			"X-CSRF-TOKEN": Cookies.get(csrf_cookie_name),
+		},
+		dataType: "html",
+		success: function (data) {
+			// Append loaded content
+			$(`#${idContent}`).append(data);
+
+			// Attempt to call data passing function
+			setTimeout(() => {
+				if (typeof getPassData === 'function') {
+					getPassData(
+						base_url(),
+						dataArray
+					);
+				} else {
+					console.warn(`Function getPassData not initialized in ${fileName}!`);
+				}
+			}, 20);
+
+			// Handle modal or offcanvas display
+			if (typeModal === 'modal') {
+				$(`#generalTitle-${sizeModal}`).text(title);
+				$(`#generalModal-${sizeModal}`).modal('show');
+			} else {
+				$('.custom-width').css('width', '400px');
+				setTimeout(() => {
+					$('#offCanvasTitle-right').text(title);
+					$('#generaloffcanvas-right').offcanvas('toggle');
+					$('.custom-width').css('width', sizeModal);
+				}, 10);
+			}
+		}
+	});
+}
+
+/**
+ * Load and populate a form within a modal or offcanvas
+ * @param {string} fileName - Path to the form file
+ * @param {string} idToLoad - Base ID for the content container
+ * @param {string} [sizeModal='lg'] - Size of the modal/offcanvas
+ * @param {string|null} [urlFunc=null] - Form submission URL
+ * @param {string} [title='Default Title'] - Title of the modal/offcanvas
+ * @param {Object|null} [dataArray=null] - Data to pre-fill the form
+ * @param {string} [typeModal='modal'] - Type of container (modal or offcanvas)
+ * @returns {Promise} Ajax promise
+ */
+const loadFormModalContent = async (fileName, idToLoad, sizeModal = 'lg', urlFunc = null, title = 'Default Title', dataArray = null, typeModal = 'modal') => {
+	// Determine the content container ID
+	const idContent = typeModal === 'modal' ?
+		`${idToLoad}-${sizeModal}` :
+		'offCanvasContent-right';
+
+	// Reset all potential modal/offcanvas content areas
+	const listSize = ['xs', 'sm', 'md', 'lg', 'xl', 'fullscreen'];
+	listSize.forEach(size => {
+		const idModalContent = `${idToLoad}-${size}`;
+		$(`#${idModalContent}`).empty();
+	});
+
+	// Clear the main content area
+	$(`#${idContent}`).empty();
+
+	// Prepare AJAX request
+	return $.ajax({
+		type: "POST",
+		url: `${base_url()}public/custom/php/general.php`,
+		data: {
+			baseUrl: base_url(),
+			fileName: fileName,
+			dataArray: dataArray
+		},
+		headers: {
+			"Authorization": `Bearer ${Cookies.get(csrf_cookie_name)}`,
+			"X-CSRF-TOKEN": Cookies.get(csrf_cookie_name),
+		},
+		dataType: "html",
+		success: function (response) {
+			// Append loaded content
+			$(`#${idContent}`).append(response);
+
+			// Attempt to call data passing function
+			setTimeout(() => {
+				if (typeof getPassData === 'function') {
+					getPassData(
+						base_url(),
+						dataArray
+					);
+				} else {
+					console.warn(`Function getPassData not initialized in ${fileName}!`);
+				}
+			}, 20);
+
+			// Get form ID
+			const formID = $(`#${idContent} > form`).attr('id');
+
+			// Reset and configure form
+			$(`#${formID}`)[0].reset();
+			document.getElementById(formID).reset();
+			$(`#${formID}`).attr('action', urlFunc);
+
+			// Handle modal or offcanvas display
+			if (typeModal === 'modal') {
+				$(`#generalTitle-${sizeModal}`).text(title);
+				$(`#generalModal-${sizeModal}`).modal('show');
+				$(`#${formID}`).attr("data-modal", `#generalModal-${sizeModal}`);
+			} else {
+				$('.custom-width').css('width', '400px');
+				$('#offCanvasTitle-right').text(title);
+				$('#generaloffcanvas-right').offcanvas('toggle');
+				$(`#${formID}`).attr("data-modal", '#generaloffcanvas-right');
+				$('.custom-width').css('width', sizeModal);
+			}
+
+			// Pre-fill form if data is provided
+			if (dataArray !== null) {
+				populateFormFields(formID, dataArray);
+			}
+		}
+	});
+}
+
+/**
+ * Load a form component into a specific container
+ * @param {string} idToLoad - ID of the container to load content into
+ * @param {string} filePath - Path to the form file
+ * @param {string|null} [urlFunc=null] - Form submission URL
+ * @param {Object|null} [dataArray=null] - Data to pre-fill the form
+ * @returns {Promise} Ajax promise
+ */
+const loadFormContent = async (idToLoad, filePath, urlFunc = null, dataArray = null) => {
+	// Clear the content area
+	$(`#${idToLoad}`).empty();
+
+	// Prepare AJAX request
+	return $.ajax({
+		type: "POST",
+		url: `${base_url()}public/custom/php/general.php`,
+		data: {
+			baseUrl: base_url(),
+			fileName: filePath,
+			dataArray: dataArray
+		},
+		headers: {
+			"Authorization": `Bearer ${Cookies.get(csrf_cookie_name)}`,
+			"X-CSRF-TOKEN": Cookies.get(csrf_cookie_name),
+		},
+		dataType: "html",
+		success: function (response) {
+			// Append loaded content
+			$(`#${idToLoad}`).append(response);
+
+			// Dynamically call data passing function
+			setTimeout(() => {
+				const functionName = `getPassData${idToLoad.charAt(0).toUpperCase() + idToLoad.slice(1)}`;
+
+				if (typeof window[functionName] === 'function') {
+					window[functionName](
+						base_url(),
+						dataArray
+					);
+				} else {
+					console.warn(`Function ${functionName} not initialized for id: ${idToLoad}`);
+				}
+			}, 20);
+
+			// Get form ID
+			const formID = $(`#${idToLoad} > form`).attr('id');
+
+			// Reset and configure form
+			$(`#${formID}`)[0].reset();
+			document.getElementById(formID).reset();
+			$(`#${formID}`).attr('action', urlFunc);
+
+			// Pre-fill form if data is provided
+			if (dataArray !== null) {
+				populateFormFields(formID, dataArray);
+			}
+		}
+	});
+}
+
+/**
+ * Populate form fields with provided data
+ * @param {string} formID - ID of the form to populate
+ * @param {Object} dataArray - Data to populate the form with
+ */
+const populateFormFields = (formID, dataArray) => {
+	$('input, select, textarea', `#${formID}`).each(function () {
+		const type = $(this).prop('type');
+		const name = $(this).attr('name');
+
+		if (dataArray.hasOwnProperty(name)) {
+			if (type === 'radio' || type === 'checkbox') {
+				$(`input[name=${name}][value='${dataArray[name]}']`).prop("checked", true);
+			} else {
+				$(`#${name}`).val(dataArray[name]);
+			}
+		}
+	});
 }

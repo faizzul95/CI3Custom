@@ -50,7 +50,11 @@ if (!function_exists('permission')) {
 
         // Check permissions for each item in params if it's an array
         if (is_array($params) && !empty($listPermission)) {
-            return array_map(fn($permissionSlug) => in_array($permissionSlug, $listPermission), $params);
+            $perm = [];
+            foreach ($params as $slug) {
+                $perm[$slug] = in_array($slug, $listPermission) ? true : false;
+            }
+            return $perm;
         }
 
         // If params is a string, check if it exists in listPermission
