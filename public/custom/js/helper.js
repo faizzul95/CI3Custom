@@ -82,6 +82,16 @@ let localeMapCurrency = {
 	}, // Indonesian Rupiah (IDR)
 };
 
+// Global error handling function
+window.showContainerError = function (display_id, message) {
+	const $container = $(`#${display_id}`);
+	$container.html(`
+		<div class="alert alert-danger" role="alert">
+			<i class="fas fa-exclamation-triangle"></i> ${message}
+		</div>
+	`);
+};
+
 // DEBUG HELPER
 
 /**
@@ -2307,16 +2317,16 @@ const generateServerDt = (id, url = null, nodatadiv = 'nodatadiv', dataObj = nul
 			// "sSearch": '',
 			// "lengthMenu": '_MENU_ item / halaman',
 			// "paginate": {
-			// 	"first": "Utama",
+			// 	"first": "Pertama",
 			// 	"last": "Terakhir",
-			// 	"previous": "Sebelum",
-			// 	"next": "Selepas"
+			// 	"previous": "Sebelumnya",
+			// 	"next": "Seterusnya"
 			// },
-			// "info": "Menunjukkan _START_ hingga _END_ daripada _TOTAL_ entri",
+			// "info": "Memaparkan _START_ hingga _END_ daripada _TOTAL_ rekod",
 			// "emptyTable": "No data is available in the table",
 			// "info": "Showing _START_ to _END_ of _TOTAL_ items",
-			// "infoEmpty": "Menunjukkan 0 hingga 0 daripada 0 entri",
-			// "infoFiltered": "(ditapis daripada _MAX_ bilangan item)",
+			// "infoEmpty": "Memaparkan 0 hingga 0 daripada 0 rekod",
+			// "infoFiltered": "(ditapis daripada _MAX_ jumlah rekod)",
 			// "zeroRecords": "Tiada rekod ditemui",
 			// "processing": "<span class='text-danger font-weight-bold font-italic'> Sedang diproses... Sila tunggu sebentar... ",
 			// "loadingRecords": "Proses...",
@@ -2362,7 +2372,7 @@ const printHelper = async (method = 'get', url, filter = null, config = null) =>
 
 	if (isSuccess(res)) {
 
-		if (isSuccess(res.data.resCode)) {
+		if (isSuccess(res.data.code)) {
 			const divToPrint = document.createElement('div');
 			divToPrint.setAttribute('id', 'generatePDF');
 			divToPrint.innerHTML = res.data.result
@@ -2371,8 +2381,8 @@ const printHelper = async (method = 'get', url, filter = null, config = null) =>
 			printDiv('generatePDF', btnID, $('#' + btnID).html(), textHeader);
 			document.body.removeChild(divToPrint);
 		} else {
-			noti(res.data.resCode, res.data.message);
-			console.log(res.data.resCode, res.data.message);
+			noti(res.data.code, res.data.message);
+			console.log(res.data.code, res.data.message);
 		}
 
 		setTimeout(function () {
@@ -2382,6 +2392,7 @@ const printHelper = async (method = 'get', url, filter = null, config = null) =>
 }
 
 // EXPORT LIST TO EXCEL
+
 const exportExcelHelper = async (method = 'get', url, filter = null, config = null) => {
 
 	let btnID = hasData(config, 'id', true, 'exportBtn');
@@ -2392,25 +2403,189 @@ const exportExcelHelper = async (method = 'get', url, filter = null, config = nu
 	const res = await callApi(method, url, filter);
 
 	if (isSuccess(res)) {
-		noti(res.data.resCode, res.data.message);
-
-		// Create a link to download the Excel file
-		const link = document.createElement('a');
-		link.href = res.data.path;
-		link.download = res.data.filename;
-		document.body.appendChild(link);
-
-		// Click the link to start the download
-		link.click();
-
-		// Remove the link from the DOM
-		document.body.removeChild(link);
+		noti(res.data.code, res.data.message);
+		await downloadFiles(res.data.path, res.data.filename);
 	}
 
 	setTimeout(function () {
 		loadingBtn(btnID, false, btnText);
 	}, 450);
 }
+
+// PREVIEW UPLOAD HELPER
+
+const previewPDF = (fileLoc, fileMime, divToLoadID, modalId = null) => {
+	const height = (fileMime === 'application/pdf') ? '650px' : 'auto';
+	const url = base_url() + fileLoc;
+	const view = (fileMime === 'application/pdf') ?
+		`<iframe src="http://docs.google.com/gview?url=${url}"&embedded=true" frameborder="0"></iframe>` :
+		`<object type="${fileMime}" data="${fileLoc}" width="100%" height="${height}"></object>`;
+
+	$(`#${divToLoadID}`).empty();
+	$(`#${divToLoadID}`).css('display', 'block');
+	$(`#${divToLoadID}`).append(view);
+
+	if (modalId != null) {
+		$(`#${modalId}`).modal('show');
+		$(`#${modalId}`).css('z-index', 2500);
+	}
+};
+
+const previewFiles = async (fileLoc, fileMime, options = {}) => {
+	// Default options
+	const defaults = {
+		display_id: 'showDocument',
+		modal_id: '',
+		modal_type: 'modal',
+		height: '650px',
+		width: '100%',
+		errorMessage: 'Unable to load the document. Please check the file or try again later.',
+		loaderMessage: 'Loading preview...'
+	};
+
+	// Merge default options with provided options
+	const settings = {
+		...defaults,
+		...options
+	};
+
+	// Validate inputs
+	if (!fileLoc || !fileMime) {
+		console.error('Invalid file location or MIME type');
+		return;
+	}
+
+	// Add skeleton loader immediately
+	const $container = $(`#${settings.display_id}`);
+	$container.empty().css('display', 'block').append(`
+		<div class="skeleton-loader">
+			<div class="skeleton-loader-content">
+				<div class="skeleton-loader-header"></div>
+				<div class="skeleton-loader-body"></div>
+			</div>
+			<p class="text-center mt-2">${settings.loaderMessage}</p>
+		</div>
+	`);
+
+	const url = base_url() + fileLoc;
+	let view = '';
+
+	// Supported MIME types mapping
+	const supportedMimeTypes = {
+		'application/pdf': true,
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': true,
+		'application/vnd.ms-excel': true,
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
+		'application/msword': true,
+		// Image MIME types
+		'image/jpeg': true,
+		'image/png': true,
+		'image/gif': true,
+		'image/bmp': true,
+		'image/webp': true,
+		'image/svg+xml': false
+	};
+
+	// Image MIME types
+	const imageTypes = [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/bmp',
+		'image/webp',
+		'image/svg+xml'
+	];
+
+	try {
+		// Determine viewer type
+		const isSupported = supportedMimeTypes[fileMime] || false;
+		const viewerUrl = 'https://docs.google.com/gview?url=' + encodeURIComponent(url) + '&embedded=true';
+
+		// Create view based on file type
+		if (imageTypes.includes(fileMime)) {
+			// Image handling
+			view = `
+				<div class="text-center">
+					<img 
+						src="${url}" 
+						alt="Preview" 
+						class="img-fluid" 
+						style="max-width: 100%; max-height: ${settings.height}; object-fit: contain;"
+						onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+					/>
+				</div>
+			`;
+		} else if (isSupported) {
+			// Document handling (PDF, Excel, Word)
+			view = `
+				<iframe 
+					src="${viewerUrl}" 
+					width="${settings.width}" 
+					height="${settings.height}" 
+					frameborder="0"
+					onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+				></iframe>
+			`;
+		} else {
+			// Fallback for unsupported types
+			view = `
+				<object 
+					type="${fileMime}" 
+					data="${url}" 
+					width="${settings.width}" 
+					height="${settings.height}"
+					onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+				>
+					<p>${settings.errorMessage}</p>
+				</object>
+			`;
+		}
+
+		// Clear and populate the container
+		$container.empty().css('display', 'block').append(view);
+
+		// Handle modal/offcanvas
+		if (settings.modal_id) {
+			const $modal = $(`#${settings.modal_id}`);
+
+			if (settings.modal_type === 'modal') {
+				$modal.modal('show').css('z-index', 2000);
+			} else if (settings.modal_type === 'offcanvas') {
+				$modal.offcanvas('toggle').css('z-index', 2000);
+			}
+		}
+	} catch (error) {
+		// Error handling
+		showContainerError(settings.display_id, settings.errorMessage);
+		console.error('Error loading document:', error);
+	}
+};
+
+// DOWNLOAD FILES HELPER
+
+const downloadFiles = async (fileLoc, fileName) => {
+	try {
+		// Attempt to fetch the file to verify its existence
+		const response = await fetch(fileLoc, { method: 'HEAD' });
+
+		// Check if the response is successful
+		if (!response.ok) {
+			throw new Error('File does not exist or cannot be accessed');
+		}
+
+		// Create download link
+		const a = document.createElement('a');
+		a.href = fileLoc;
+		a.download = fileName;
+		document.body.append(a);
+		a.click();
+		a.remove();
+	} catch (error) {
+		// Handle file download error
+		console.error('Download error:', error.message);
+		alert('Unable to download the file. The file may not exist or there was a network issue.');
+	}
+};
 
 // DYNAMIC LOAD FILE/PAGE USING HTTP CALL
 

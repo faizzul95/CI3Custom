@@ -15,12 +15,42 @@
 	width: 80%;
 }
 
+.skeleton-loader {
+	width: 100%;
+	padding: 20px;
+	text-align: center;
+}
+
+.skeleton-loader-content {
+	background: #f0f0f0;
+	border-radius: 4px;
+	overflow: hidden;
+	position: relative;
+}
+
+.skeleton-loader-header {
+	height: 20px;
+	margin-bottom: 15px;
+	background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+	background-size: 200% 100%;
+	animation: skeleton-loading 1.5s infinite;
+}
+
+.skeleton-loader-body {
+	height: 200px;
+	background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+	background-size: 200% 100%;
+	animation: skeleton-loading 1.5s infinite;
+}
+
 @keyframes skeleton-loading {
 	0% {
+		background-position: 200% 0;
 		background-color: hsl(200, 20%, 70%);
 	}
 
 	100% {
+		background-position: -200% 0;
 		background-color: hsl(200, 20%, 95%);
 	}
 }
