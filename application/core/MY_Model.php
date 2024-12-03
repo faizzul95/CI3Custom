@@ -12,7 +12,7 @@ use App\Core\Traits\PaginateQuery;
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
  * @link      -
- * @version   0.1.0.1
+ * @version   0.1.0.2
  */
 
 class MY_Model extends CI_Model
@@ -596,6 +596,7 @@ class MY_Model extends CI_Model
 
     public function count()
     {
+        $this->_withTrashQueryFilter();
         $query = $this->_database->count_all_results($this->table);
         $this->resetQuery();
         return $query;

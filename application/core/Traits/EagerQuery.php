@@ -462,26 +462,66 @@ trait EagerQuery
                     $localKey = $config['localKey'];
                     $aggregateColumn = $column === '*' ? '1' : "{$relationModel->table}.{$column}";
 
+                    // Create a subquery with soft delete handling
+                    $subquery = $this->_database->select("{$type}({$aggregateColumn})")
+                        ->from($relationModel->table)
+                        ->where("{$relationModel->table}.{$foreignKey} = {$this->table}.{$localKey}");
+
+                    // Apply soft delete conditions
+                    if ($relationModel->softDelete) {
+                        switch ($relationModel->_trashed) {
+                            case 'only':
+                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NOT NULL");
+                                break;
+                            case 'without':
+                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NULL");
+                                break;
+                            case 'with':
+                                // No additional filtering
+                                break;
+                        }
+                    }
+
+                    // Convert subquery to string
+                    $subqueryString = $subquery->get_compiled_select();
+
                     $this->_database->select("{$this->table}.*");
-                    $this->_database->select("(
-                        SELECT {$type}({$aggregateColumn})
-                        FROM {$relationModel->table}
-                        WHERE {$relationModel->table}.{$foreignKey} = {$this->table}.{$localKey}
-                    ) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
+                    $this->_database->select("({$subqueryString}) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
                     break;
 
                 case 'belongsTo':
                     $ownerKey = $config['ownerKey'];
                     $aggregateColumn = $column === '*' ? '1' : "{$relationModel->table}.{$column}";
 
+                    // Create a subquery with soft delete handling
+                    $subquery = $this->_database->select("{$type}({$aggregateColumn})")
+                        ->from($relationModel->table)
+                        ->where("{$relationModel->table}.{$ownerKey} = {$this->table}.{$foreignKey}");
+
+                    // Apply soft delete conditions
+                    if ($relationModel->softDelete) {
+                        switch ($relationModel->_trashed) {
+                            case 'only':
+                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NOT NULL");
+                                break;
+                            case 'without':
+                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NULL");
+                                break;
+                            case 'with':
+                                // No additional filtering
+                                break;
+                        }
+                    }
+
+                    // Convert subquery to string
+                    $subqueryString = $subquery->get_compiled_select();
+
                     $this->_database->select("{$this->table}.*");
-                    $this->_database->select("(
-                        SELECT {$type}({$aggregateColumn})
-                        FROM {$relationModel->table}
-                        WHERE {$relationModel->table}.{$ownerKey} = {$this->table}.{$foreignKey}
-                    ) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
+                    $this->_database->select("({$subqueryString}) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
                     break;
             }
         }
+
+        return $this;
     }
 }
