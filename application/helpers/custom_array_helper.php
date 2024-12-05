@@ -273,3 +273,82 @@ if (!function_exists('removeNullorEmptyValues')) {
         }
     }
 }
+
+/**
+ * Finds and returns a specific value from a multidimensional array based on a search condition.
+ *
+ * @param array  $collection  The array/collection to search through
+ * @param string $searchKey   The key to search by (e.g., 'slug', 'id', 'name')
+ * @param mixed  $searchValue The value to match against the searchKey
+ * @param string $returnKey   The key of the value to return from the matched item
+ * 
+ * @return mixed|null Returns the value of returnKey if found, null otherwise
+ * 
+ * @throws InvalidArgumentException If any required parameter is invalid or empty
+ * @throws RuntimeException If the collection structure is invalid
+ * 
+ * @example
+ * try {
+ *     $result = findInCollection($data, 'slug', 'post-1', 'id');
+ * } catch (Exception $e) {
+ *     // Handle error
+ * }
+ */
+if (!function_exists('findInCollection')) {
+    function findInCollection($collection, $searchKey, $searchValue, $returnKey)
+    {
+        try {
+            // Validate collection
+            if (empty($collection)) {
+                throw new InvalidArgumentException('Collection cannot be empty');
+            }
+
+            if (!is_array($collection)) {
+                throw new InvalidArgumentException('Collection must be an array');
+            }
+
+            // Validate searchKey
+            if (empty($searchKey) || !is_string($searchKey)) {
+                throw new InvalidArgumentException('Search key must be a non-empty string');
+            }
+
+            // Validate returnKey
+            if (empty($returnKey) || !is_string($returnKey)) {
+                throw new InvalidArgumentException('Return key must be a non-empty string');
+            }
+
+            // Validate searchValue (allow 0 or empty string as valid values)
+            if ($searchValue === null) {
+                throw new InvalidArgumentException('Search value cannot be null');
+            }
+
+            // Optimize search by using array_column if possible
+            if (isset($collection[0]) && is_array($collection[0])) {
+                $column = array_column($collection, $returnKey, $searchKey);
+                return isset($column[$searchValue]) ? $column[$searchValue] : null;
+            }
+
+            // Fallback to foreach if array structure is different
+            foreach ($collection as $item) {
+                // Validate item structure
+                if (!is_array($item)) {
+                    throw new RuntimeException('Invalid collection structure: items must be arrays');
+                }
+
+                if (!array_key_exists($searchKey, $item)) {
+                    continue; // Skip items without the search key
+                }
+
+                if ($item[$searchKey] === $searchValue) {
+                    return array_key_exists($returnKey, $item) ? $item[$returnKey] : null;
+                }
+            }
+
+            return null;
+        } catch (Exception $e) {
+            // Log the error if needed
+            // error_log("Error in findInCollection: " . $e->getMessage());
+            throw $e; // Re-throw the exception for the caller to handle
+        }
+    }
+}

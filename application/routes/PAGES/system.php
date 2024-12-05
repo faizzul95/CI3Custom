@@ -95,3 +95,73 @@ Route::group('/sys', function () {
         jsonResponse(seedTable($filename));
     });
 });
+
+Route::group('/sys-rbac', function () {
+    // Load the page for settings
+    Route::get('/', function () {
+        render('system/_main_rbac', [
+            'title' => 'Tetapan Sistem',
+            'currentSidebar' => 'Tetapan',
+            'currentSubSidebar' => null,
+            'permission' => permission(
+                [
+                    'rbac-view'
+                ]
+            )
+        ]);
+    });
+
+    // Load the page for roles
+    Route::get('/roles-list-pages', function () {
+        render('system/list_roles', [
+            'title' => 'Tetapan Sistem',
+            'currentSidebar' => 'Tetapan',
+            'currentSubSidebar' => 'Peranan',
+            'permission' => permission(
+                [
+                    'roles-view',
+                    'roles-create',
+                ]
+            )
+        ]);
+    });
+
+    // Load the page for menu navigation
+    Route::get('/menu-list-pages', function () {
+        render('system/list_menu_navigation', [
+            'title' => 'Tetapan Sistem',
+            'currentSidebar' => 'Tetapan',
+            'currentSubSidebar' => 'Navigasi Menu',
+            'permission' => permission(
+                [
+                    'menu-navigation-view',
+                    'menu-navigation-create',
+                ]
+            )
+        ]);
+    });
+
+    // Load the page for email
+    Route::get('/email-list-pages', function () {
+        render('system/_email_section', [
+            'title' => 'Tetapan Sistem',
+            'currentSidebar' => 'Tetapan',
+            'currentSubSidebar' => 'Email',
+            'permission' => permission(
+                [
+                    'email-view',
+                ]
+            )
+        ]);
+    });
+
+    // Load the page for developer zone
+    Route::get('/developer-list-pages', function () {
+        render('system/developer_section', [
+            'title' => 'Tetapan Sistem',
+            'currentSidebar' => 'Tetapan',
+            'currentSubSidebar' => 'Zon Pembangun',
+            'permission' => null
+        ]);
+    });
+});

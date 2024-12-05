@@ -19,11 +19,11 @@ class Api implements Luthier\MiddlewareInterface
 		} else {
 			if ($this->hasPermissionAction()) {
 				if ($this->isXssAttack())
-					return returnData(['code' => 422, 'message' => 'Protection against <b><i> Cross-site scripting (XSS) </i></b> activated!'], 422);
+					jsonResponse(['code' => 422, 'message' => 'Protection against <b><i> Cross-site scripting (XSS) </i></b> activated!'], 422);
 				else
 					$this->isRateLimiting();
 			} else {
-				return returnData(['code' => 400, 'message' => 'You are not authorized to perform this action'], 400);
+				jsonResponse(['code' => 403, 'message' => 'You are not authorized to perform this action'], 403);
 			}
 		}
 	}

@@ -30,7 +30,9 @@ require __DIR__ . '/PAGES/authentication.php';
 require __DIR__ . '/PAGES/system.php';
 // require __DIR__ . '/PAGES/Error.php';
 
-Route::get('/dashboard', 'dashboard@index', ['middleware' => 'Sanctum']);
+Route::get('/profile', 'userProfile@index', ['middleware' => ['Sanctum']]);
+Route::get('/dashboard', 'dashboard@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
+Route::get('/user', 'user@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
 
 Route::set('404_override', function () {
     show_404();

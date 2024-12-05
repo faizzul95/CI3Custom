@@ -44,4 +44,30 @@ class SystemMenuNavigation_model extends MY_Model
     {
         return $this->hasOne('SystemAbilities_model', 'id', 'abilities_id');
     }
+
+    ###################################################################
+    #                    CUSTOM FUNCTION                              #
+    ###################################################################
+
+    public function getMenuLocationTypeAttribute()
+    {
+        $menu = $this->is_main_menu == 0 ? '<span class="badge bg-info"> Main Menu </span>' : '<span class="badge bg-info"> Sub Menu </span>';
+        $categoryMenu = [
+            '1' => 'Side Menu',
+            '2' => 'Top Menu (Header)',
+            '3' => 'Settings (Gear icon)'
+        ];
+
+        return $menu . ' - ' . hasData($categoryMenu, $this->menu_location, true);
+    }
+
+    public function getStatusAttribute()
+    {
+        return $this->is_active == 1 ? 'Active' : ($this->is_active == 0 ? 'Inactive' : '-');
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        return $this->is_active == 1 ? '<span class="badge badge-label bg-success">Active</span>' : ($this->is_actives == 0 ? '<span class="badge badge-label bg-warning">Inactive</span>' : '-');
+    }
 }

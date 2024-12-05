@@ -1,6 +1,8 @@
-# CodeIgniter 3.2.0 (Custom)
+# ePMP
 
-Owner : Fahmy Izwan
+Project Name : e-PMP
+
+Client : Dalilah (MPKL)
 
 Year Project : 2024
 
@@ -9,9 +11,114 @@ Requirement System
 - MySQL
 
 Framework
+- Bootstrap v5.0
 - CodeIgniter v3.2.0 (Beta)
 
 <hr>
+
+<details> 
+<summary> DESCRIPTION </summary>
+<hr>
+<p> N/A </p>
+<br/>
+</details> 
+
+<details> 
+<summary> FEATURES </summary>
+<hr>
+  
+- SECURITY
+	1) XSS Protection (validate data from malicious code using middleware)
+	2) Google Authenticator (Use for 2FA)
+	3) Google ReCAPTCHA v2 (Reduce DDos Attack)
+	4) Login Attempt (Reduce Brute Force Attack)
+	5) Custom Front-end Validation in JS (Data integrity)
+	6) Custom Route & Middleware (Protect URL & Page) - Thanks <a href="https://github.com/ingeniasoftware/luthier-ci" target="_blank"> Luthier CI </a> for amazing library
+	7) CSRF Token & Cookie (Built in CI3)
+	8) Rate Limiting Trait (API Request limitter using Middleware)
+
+- SYSTEM
+	1) Custom Model DB Query. 
+	2) Job Queue (Worker) - Running in background (Thanks to <a href="https://github.com/yidas/codeigniter-queue-worker" target="_blank"> Yidas </a> for Queue Worker library)
+	3) Maintenance Mode (With custom page)
+	4) Blade Templating Engine (Increase security & caching) - (Credit to team <a href="https://github.com/EFTEC/BladeOne" target="_blank">BladeOne</a>)
+	5) SSL Force redirect (production mode)
+	6) System logger (Log error system in database & files)
+	7) Audit Trail (Log data insert, update, delete in database)
+	8) CRUD Log (Log data insert, update, delete in files)
+	9) Cron Scheduler - (Credit to <a href="https://github.com/peppeocchi/php-cron-scheduler" target="_blank">Peppeocchi</a>)
+
+- HELPER
+	<ol type="A">
+	<li> Front-end </li> 
+	<ol type="1">
+		<li> Call API (POST, GET), Upload API, Delete API wrapper (using axios) </li>
+		<li> Dynamic modal & Form loaded </li>
+		<li> Generate datatable (server-side & client-side rendering) </li>
+		<li> Print DIV (use <a href="https://jasonday.github.io/printThis/" target="_blank">printThis</a> library) </li>
+	</ol> 
+	<br>
+	<li> Backend-end </li> 
+	<ol type="1">
+		<li> Array helper </li>
+		<li> Data Helper </li>
+		<li> Date Helper </li>
+		<li> Upload Helper (upload, move, compress image) </li>
+		<li> QR Generate Helper (using <a href="https://github.com/endroid/qr-code" target="_blank">Endroid</a> library) </li>
+		<li> Read/Import Excel (using <a href="https://github.com/PHPOffice/PhpSpreadsheet" target="_blank">PHPSpreadsheet</a> library) </li>
+		<li> Mailer (using <a href="https://github.com/PHPMailer/PHPMailer" target="_blank">PHPMailer</a> library) </li>
+	</ol>
+	</ol>
+			
+- SERVICES
+	1) Backup system folder (with exceptions file or folder)
+	2) Backup database (MySQL tested)
+	3) Upload file backup to google drive (need to configure)
+
+<br/>
+</details> 
+
+<details> 
+<summary> COMMAND </summary>
+<hr>
+
+Command (Terminal / Command Prompt):-
+
+<ol type="A">
+	<li> Cache </li> 
+		<ol type="1">
+			<li> php struck clear view (remove blade cache)  </li>
+			<li> php struck clear cache (remove ci session cache)  </li>
+			<li> php struck clear all (remove ci session cache, blade cache & logs file)  </li>
+			<li> php struck optimize (remove blade cache & logs file)  </li>
+		</ol> 
+	<br>
+	<li> Backup (use as a ordinary cron jobs) </li> 
+		<ol type="1">
+			<li> php struck cron database (backup the database in folder project) </li>
+			<li> php struck cron system (backup system folder in folder project) </li>
+			<li> php struck cron database upload (backup the database & upload to google drive) </li>
+			<li> php struck cron system upload (backup system folder & upload to google drive) </li>
+		</ol> 
+	<br>
+	<li> Jobs (Queue Worker) </li> 
+		<ol type="1">
+			<li> php struck jobs (temporary run until jobs completed) </li>
+			<li> php struck jobs work (temporary run until jobs completed) </li>
+			<li> php struck jobs launch (permanent until services kill) - use in linux environment </li>
+		</ol> 
+	<br>
+		<li> Cron Scheduler (Laravel Task Scheduling) </li> 
+		<ol type="1">
+			<li> php struck schedule:run </li>
+			<li> php struck schedule:list </li>
+			<li> php struck schedule:work </li>
+			<li> php struck schedule:fail </li>
+		</ol> 
+	<br>
+</ol>
+ <br/>
+</details> 
 
 # EXTENDED  
 
@@ -130,8 +237,6 @@ class <ClassName>_model extends MY_Model
 | `orWhereBetween()`| Adds an OR WHERE BETWEEN clause. Similar to Laravel's `orWhereBetween()`.                                                                       |
 | `whereNotBetween()`| Adds a WHERE NOT BETWEEN clause. Similar to Laravel's `whereNotBetween()`.                                                                     |
 | `orWhereNotBetween()`| Adds an OR WHERE NOT BETWEEN clause. Similar to Laravel's `orWhereNotBetween()`.                                                             |
-| `whereHas()`    | Filters the parent model based on conditions applied to its related model's records. Similar to Laravel's `whereHas()`.                           |
-| `orWhereHas()`  | Similar to `whereHas()`, but adds the condition with an OR operator. Similar to Laravel's `orWhereHas()`.                                         |
 | `join()`        | Adds an INNER JOIN to the query. Similar to CodeIgniter’s `join()`.                                                                               |
 | `rightJoin()`   | Adds a RIGHT JOIN to the query. Similar to Laravel's `rightJoin()`.                                                                               |
 | `leftJoin()`    | Adds a LEFT JOIN to the query. Similar to Laravel's `leftJoin()`.                                                                                 |
@@ -344,119 +449,6 @@ class <ClassName> extends CI_Controller
     public function exampleWhereNotNullWithOrWhereNotNull()
     {
         $data = $this->any_model->whereNotNull('column_name1')->orWhereNotNull('column_name2')->first();
-        print_r($data);
-    }
-}
-```
-</details>
-
-
-<details> 
-<summary> Example Usage of whereHas($relation, $callback) / orWhereHas($relation, $callback) </summary>
-  
-#### Description
-<b>Parameters:</b><br>
-`$relation` (string): The name of the relationship. <br>
-`$callback` (closure): The conditions to apply to the related records. <br>
-<br>
-
-```php
-<?php
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-# MODEL : MAIN / PARENT
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class Any_model extends MY_Model
-{
-    public $table = 'anyTable';
-    public $primaryKey = 'id'; 
-    
-    public $fillable = [
-        'column1',
-        'column2',
-        'column3',
-        'column4'
-    ];
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    public function related1()
-    {
-        return $this->hasMany('Related1_model', 'anyPK_id', 'id');
-    }
-
-    public function related2()
-    {
-        return $this->hasMany('Related2_model', 'anyPK_id', 'id');
-    }
-}
-
-class Related1_model extends MY_Model
-{
-    public $table = 'relatedTableName';
-    public $primaryKey = 'id'; 
-    
-    public $fillable = [
-        'columnR1',
-        'columnR2',
-        'columnR3',
-        'columnR4'
-    ];
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    public function func1()
-    {
-        return $this->hasMany('Related2_model', 'anyPK_id', 'id');
-    }
-}
-
-# CONTROLLER
-
-class <ClassName> extends CI_Controller
-{
-    public function __construct()
-    {
-        parent::__construct();
-        $this->load->model('any_model');
-    }
-
-    public function exampleWhereHasSingle()
-    {
-        $data = $this->any_model->whereHas('related1', function ($query) {
-                    $query->where('columnRelated1', 'value');
-                })->get();
-
-        print_r($data);
-    }
-
-    public function exampleWhereHasNested()
-    {
-        $data = $this->any_model->whereHas('related1.func1', function ($query) {
-                    $query->where('relatedTableName.columnR3', 'value');
-                })->get();
-
-        print_r($data);
-    }
-
-    public function exampleOrWhereHas()
-    {
-        $data = $this->any_model->where('column1', 'value1')
-                ->orWhereHas('related2', function ($query) {
-                    $query->where('columnRelated2', 'value2');
-                })->get();
-
         print_r($data);
     }
 }
@@ -707,12 +699,11 @@ class <ClassName> extends CI_Controller
 </details>
 
 <details> 
-<summary> Example Usage of paginate_ajax($dataPost, $customFilter) </summary>
+<summary> Example Usage of paginate_ajax($dataPost) </summary>
   
 #### Description
 <b>Parameters:</b><br>
 `$dataPost` (array): An array $_POST from the request ajax datatable. <br>
-`$customFilter` (array): An array for custom filter for advanced search. <br>
 <br>
 
 ```php
@@ -972,13 +963,9 @@ class Any_model extends MY_Model
 
 #### Eager Load Functions
 
-| Function      | Description                                                                                                                                      |
-|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
-| `with()`      | Eager loads related models to avoid the N+1 query issue. Similar to Laravel's `with()`.                                                          |
-| `withCount()` | Adds the count of related records to the parent model's result set.                                                                              |
-| `withSum()`   | Adds the sum of a specific column from related records to the parent model's result set.                                                         |
-| `withMin()`   | Adds the minimum value of a specific column from related records to the parent model's result set.                                               |
-| `withMax()`   | Adds the maximum value of a specific column from related records to the parent model's result set.                                               |
+| Function   | Description                                                                                                                                      |
+|------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
+| `with()`   | Eager loads related models to avoid the N+1 query issue. Similar to Laravel's `with()`.                                                          |
 
 <details> 
 <summary> Example Usage of with($relation) </summary>
@@ -1094,176 +1081,6 @@ class <ClassName> extends CI_Controller
                 }])
                 ->with('related1.function2')
                 ->paginate(10, 3);  // can used get(), fetch(), paginate(), first(), last(). 
-    }
-}
-```
-</details> 
-
-<details> 
-<summary> Example Usage of withCount($relation) </summary>
-  
-#### Description
-<b>Parameters:</b><br>
-`$relation` (string|array): The relationship(s) to count.
-<br>
-
-```php
-<?php
-
-# MODEL : MAIN / PARENT
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class Any_model extends MY_Model
-{
-    public $table = 'anyTable';
-    public $primaryKey = 'id'; 
-    
-    public $fillable = [
-        'column1',
-        'column2',
-        'column3',
-        'column4'
-    ];
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    public function related1()
-    {
-        return $this->hasMany('Related1_model', 'anyPK_id', 'id');
-    }
-
-    public function related2()
-    {
-        return $this->hasMany('Related2_model', 'anyPK_id', 'id');
-    }
-}
-
-# CONTROLLER
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class <ClassName> extends CI_Controller
-{
-    public function __construct()
-    {
-        parent::__construct();
-        $this->load->model('any_model');
-    }
-
-    public function exampleWithCountSingle()
-    {
-        return $this->any_model->select('id, column1, column2')
-                ->whereYear('created_at', '>=', '2024')
-                ->orderBy('id', 'DESC')
-                ->withCount('related1') // Adds `related1_count` to the result
-                ->get(); // can used get(), fetch(), paginate(), first(), last().
-    }
-
-    public function exampleWithCountMultiple()
-    {
-        return $this->any_model->select('id, column1, column2')
-                ->whereYear('created_at', '>=', '2024')
-                ->orderBy('id', 'DESC')
-                ->withCount('related1', 'related2') // Adds `related1_count` & `related2_count` to the result
-                ->get(); // can used get(), fetch(), paginate(), first(), last().
-    }
-
-    public function exampleWithCountArray()
-    {
-        return $this->any_model->select('id, column1, column2')
-                ->whereYear('created_at', '>=', '2024')
-                ->orderBy('id', 'DESC')
-                ->withCount(['related1', 'related2']) // Adds `related1_count` & `related2_count` to the result
-                ->get(); // can used get(), fetch(), paginate(), first(), last().
-    }
-}
-```
-</details> 
-
-
-<details> 
-<summary> Example Usage of withSum($relation, $column) / withMin($relation, $column) / withMax($relation, $column) </summary>
-  
-#### Description
-<b>Parameters:</b><br>
-`$relation` (string): The relationship to sum/min/max. <br>
-`$column` (string): The column to sum/min/max. <br>
-<br>
-
-```php
-<?php
-
-# MODEL : MAIN / PARENT
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class Any_model extends MY_Model
-{
-    public $table = 'anyTable';
-    public $primaryKey = 'id'; 
-    
-    public $fillable = [
-        'column1',
-        'column2',
-        'column3',
-        'column4'
-    ];
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-
-    public function related1()
-    {
-        return $this->hasMany('Related1_model', 'anyPK_id', 'id');
-    }
-
-    public function related2()
-    {
-        return $this->hasMany('Related2_model', 'anyPK_id', 'id');
-    }
-}
-
-# CONTROLLER
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class <ClassName> extends CI_Controller
-{
-    public function __construct()
-    {
-        parent::__construct();
-        $this->load->model('any_model');
-    }
-
-    public function exampleWithSum()
-    {
-        return $this->any_model->select('id, column1, column2')
-            ->withSum('related1', 'columnRelated2') // Adds `related1_columnRelated2_sum` to the result
-            ->get();
-    }
-
-    public function exampleWithMin()
-    {
-        return $this->any_model->select('id, column1, column2')
-            ->withMin('related1', 'columnRelated2') // Adds `related1_columnRelated2_min` to the result
-            ->get();
-    }
-
-    public function exampleWithMax()
-    {
-        return $this->any_model->select('id, column1, column2')
-            ->withMax('related1', 'columnRelated2') // Adds `related1_columnRelated2_max` to the result
-            ->get();
     }
 }
 ```
@@ -1845,9 +1662,7 @@ class <ClassName> extends CI_Controller
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ignoreValidation()`        | Ignores all validation rules for inserts and updates.                                                                                           |
 | `setValidationRules()`      | Sets or overrides existing validation rules for the model on the fly.                                                                           |
-| `setCustomValidationRules()`| Adds or changes existing validation rules that are already set in the model. Will be used for both update & insert function.                    |
-| `setCreateValidationRules()`| Temporary sets custom update validation rules for create/insert operations, optionally merging with existing rules if specified.                |
-| `setPatchValidationRules()` | Temporary sets custom update validation rules for patch/update operations, optionally merging with existing rules if specified.                 |
+| `setCustomValidationRules()`| Adds or changes existing validation rules that are already set in the model.                                                                    |
 
 <details> 
 <summary> Example Usage of ignoreValidation() </summary>
@@ -2051,99 +1866,6 @@ class <ClassName> extends CI_Controller
                         'column3' => ['field' => 'column3', 'label' => 'Column 3', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 3 adalah wajib.']] // will add new validation for column 3
                     ])
                     ->patch($dataToUpdate, $id);
-    }
-}
-```
-</details> 
-
-
-<details> 
-<summary> Example Usage of setCreateValidationRules($rules, $updateRules) / setPatchValidationRules($rules, $updateRules) </summary>
-
-#### Description
-<b>Parameters:</b><br>
-`$rules` (array): An array containing the set of rules to change. <br>
-`$updateRules` (bool): An indicator to update the existing or a new set of rules. Set 'true' to update the existing rules in model. 
-<br>
-  
-```php
-<?php
-
-# MODEL
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class Any_model extends MY_Model
-{
-    public $table = 'anyTable';
-    public $primaryKey = 'id'; 
-    
-    public $fillable = [
-        'column1',
-        'column2',
-        'column3',
-        'column4'
-    ];
-
-    protected $_validation = [
-        'column1' => ['field' => 'column1', 'label' => 'Column 1', 'rules' => 'required'], // Only have required
-        'column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim'] 
-    ];
-
-    public function __construct()
-    {
-        parent::__construct();
-    }
-}
-
-# CONTROLLER
-
-if (!defined('BASEPATH'))
-    exit('No direct script access allowed');
-
-class <ClassName> extends CI_Controller
-{
-    public function __construct()
-    {
-        parent::__construct();
-        $this->load->model('any_model');
-    }
-
-    public function exampleCreateValidationRules()
-    {
-        return $this->any_model
-                    ->setCreateValidationRules([
-                        'column2' => ['field' => 'column2', 'label' => 'Column 2', 'rules' => 'required|trim|is_unique'] // will only validate the email as unique on the create operations.
-                    ])
-                    ->insertOrUpdate(['id', $id], $dataToInsert);
-    }
-
-    public function examplePatchValidationRules_newRules()
-    {
-        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
-
-        return $this->any_model
-                    ->setPatchValidationRules($rules) // will only replace the rules during patch operations, column1 will be removed and the column4 rules will be updated.
-                    ->insertOrUpdate(['id', $id], $dataToInsert);
-    }
-
-    public function examplePatchValidationRules_updateRules()
-    {
-        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
-
-        return $this->any_model
-                    ->setPatchValidationRules($rules, true) // If set to true, it will update the existing column4 from $_validation in the model with new rules. The column1 will remain unchange. It will only validate the email as valid during update operations. It will not validate during the create operation.
-                    ->insertOrUpdate(['id', $id], $dataToInsert);
-    }
-
-    public function examplePatchValidation_invalidUsed()
-    {
-        $rules = ['column4' => ['field' => 'column4', 'label' => 'Column 4', 'rules' => 'required|trim|valid_email', 'errors' => ['required' => 'Column 4 adalah wajib.']]];
-
-        return $this->any_model
-                    ->setPatchValidationRules($rules, true) // nothing will happen since it is the create operation.
-                    ->create($dataToInsert);
     }
 }
 ```

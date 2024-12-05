@@ -1,4 +1,7 @@
 <?php
+
+ob_start();
+
 /**
  * CodeIgniter
  *
@@ -319,3 +322,5 @@ if (file_exists(APPPATH . 'hooks/initial_hook.php')) {
 }
 
 require_once BASEPATH.'core/CodeIgniter.php';
+
+ob_end_flush();

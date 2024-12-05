@@ -17,9 +17,10 @@ class Migration_create_master_roles extends CI_Migration
 			'id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'auto_increment' => TRUE, 'comment' => ''],
 			'role_name' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
 			'role_rank' => ['type' => 'VARCHAR', 'constraint' => 255, 'null' => TRUE, 'comment' => ''],
-			'role_status' => ['type' => 'TINYINT', 'null' => TRUE, 'comment' => ''],
+			'role_status' => ['type' => 'TINYINT', 'null' => TRUE, 'comment' => '0-Inactive, 1-Active'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
+			'deleted_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 		]);
 
 		$this->dbforge->add_key('id', TRUE);
@@ -44,15 +45,8 @@ class Migration_create_master_roles extends CI_Migration
 			],
 			[
 				'id' 			=> '2',
-				'role_name' 	=> 'System Administrator',
+				'role_name' 	=> 'Administrator',
 				'role_rank' 	=> '8000',
-				'role_status' 	=> '1',
-				'created_at' 	=>  timestamp(),
-			],
-			[
-				'id' 			=> '3',
-				'role_name' 	=> 'System Support',
-				'role_rank' 	=> '7000',
 				'role_status' 	=> '1',
 				'created_at' 	=>  timestamp(),
 			]

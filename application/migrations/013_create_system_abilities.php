@@ -49,12 +49,6 @@ class Migration_create_system_abilities extends CI_Migration
 				'created_at'		  => timestamp(),
 			],
 			[
-				'abilities_name'	  => 'Menu User',
-				'abilities_slug'	  => 'user-menu-view',
-				'abilities_desc'	  => 'User can view User menu',
-				'created_at'		  => timestamp(),
-			],
-			[
 				'abilities_name'	  => 'List User',
 				'abilities_slug'	  => 'user-view',
 				'abilities_desc'	  => 'User can view List user',
@@ -78,6 +72,36 @@ class Migration_create_system_abilities extends CI_Migration
 				'abilities_desc'	  => 'User can delete user information',
 				'created_at'		  => timestamp(),
 			],
+			[
+				'abilities_name'	  => 'User Assign Role',
+				'abilities_slug'	  => 'user-assign-role',
+				'abilities_desc'	  => 'User can assgin role to user',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'User Set Main Profile',
+				'abilities_slug'	  => 'user-default-profile',
+				'abilities_desc'	  => 'User can set default profile',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'User Delete Profile',
+				'abilities_slug'	  => 'user-delete-profile',
+				'abilities_desc'	  => 'User can delete user profile',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'View Info Settings',
+				'abilities_slug'	  => 'settings-view-info',
+				'abilities_desc'	  => 'User can view settings information',
+				'created_at'		  => timestamp(),
+			],
+			[
+				'abilities_name'	  => 'Change Password Settings',
+				'abilities_slug'	  => 'settings-change-password',
+				'abilities_desc'	  => 'User can view and change password settings information',
+				'created_at'		  => timestamp(),
+			]
 		];
 
 		$this->db->insert_batch($this->table_name, $data);

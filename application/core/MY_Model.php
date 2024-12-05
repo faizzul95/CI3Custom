@@ -2,8 +2,8 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
-use App\Core\Traits\EagerQuery;
-use App\Core\Traits\PaginateQuery;
+use App\core\Traits\EagerQuery;
+use App\core\Traits\PaginateQuery;
 
 /**
  * MY_Model Class

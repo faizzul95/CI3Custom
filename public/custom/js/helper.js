@@ -2434,132 +2434,173 @@ const previewPDF = (fileLoc, fileMime, divToLoadID, modalId = null) => {
 const previewFiles = async (fileLoc, fileMime, options = {}) => {
 	// Default options
 	const defaults = {
-		display_id: 'showDocument',
-		modal_id: '',
-		modal_type: 'modal',
-		height: '650px',
-		width: '100%',
-		errorMessage: 'Unable to load the document. Please check the file or try again later.',
-		loaderMessage: 'Loading preview...'
+	  display_id: "showDocument",
+	  modal_id: "",
+	  modal_type: "modal",
+	  height: "650px",
+	  width: "100%",
+	  errorMessage: "Unable to load the document. Please check the file or try again later.",
+	  loaderMessage: "Loading preview...",
+	  retry: 3, 
+	  skeletonLoader: null, 
 	};
-
+  
 	// Merge default options with provided options
 	const settings = {
-		...defaults,
-		...options
+	  ...defaults,
+	  ...options,
 	};
-
+  
 	// Validate inputs
 	if (!fileLoc || !fileMime) {
-		console.error('Invalid file location or MIME type');
-		return;
+	  console.error("Invalid file location or MIME type");
+	  return;
 	}
-
-	// Add skeleton loader immediately
+  
+	// Add skeleton loader
 	const $container = $(`#${settings.display_id}`);
-	$container.empty().css('display', 'block').append(`
-		<div class="skeleton-loader">
-			<div class="skeleton-loader-content">
-				<div class="skeleton-loader-header"></div>
-				<div class="skeleton-loader-body"></div>
+	$container.empty().css("display", "block");
+  
+	// Use custom skeleton loader if provided, otherwise use default
+	if (typeof settings.skeletonLoader === "function") {
+	  	$container.append(settings.skeletonLoader());
+	} else {
+		// Default loading indicator
+		$container.append(`
+			<div class="text-center">
+				<div class="spinner-border" role="status">
+					<span class="visually-hidden"> ${settings.loaderMessage} </span>
+				</div>
 			</div>
-			<p class="text-center mt-2">${settings.loaderMessage}</p>
-		</div>
-	`);
-
+		`);
+	}
+  
 	const url = base_url() + fileLoc;
-	let view = '';
-
+	let view = "";
+  
 	// Supported MIME types mapping
 	const supportedMimeTypes = {
-		'application/pdf': true,
-		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': true,
-		'application/vnd.ms-excel': true,
-		'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
-		'application/msword': true,
-		// Image MIME types
-		'image/jpeg': true,
-		'image/png': true,
-		'image/gif': true,
-		'image/bmp': true,
-		'image/webp': true,
-		'image/svg+xml': false
+	  "application/pdf": true,
+	  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+	  "application/vnd.ms-excel": true,
+	  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+	  "application/msword": true,
+	  // Image MIME types
+	  "image/jpeg": true,
+	  "image/png": true,
+	  "image/gif": true,
+	  "image/bmp": true,
+	  "image/webp": true,
+	  "image/svg+xml": false,
 	};
-
+  
 	// Image MIME types
 	const imageTypes = [
-		'image/jpeg',
-		'image/png',
-		'image/gif',
-		'image/bmp',
-		'image/webp',
-		'image/svg+xml'
+	  "image/jpeg",
+	  "image/png",
+	  "image/gif",
+	  "image/bmp",
+	  "image/webp",
+	  "image/svg+xml",
 	];
-
+  
+	// Retry fetch with configurable attempts
+	const fetchWithRetry = async (url, retries = 1) => {
+	  for (let attempt = 1; attempt <= retries; attempt++) {
+		try {
+		  const response = await fetch(url);
+  
+		  // Check for 200 status
+		  if (response.status === 200) {
+			return response;
+		  }
+  
+		  // If not 200 and this is the last retry, throw an error
+		  if (attempt === retries) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		  }
+  
+		  // Wait a moment before retrying
+		  await new Promise((resolve) => setTimeout(resolve, 1000));
+		} catch (error) {
+		  // If this is the last retry, throw the error
+		  if (attempt === retries) {
+			throw error;
+		  }
+  
+		  // Wait a moment before retrying
+		  await new Promise((resolve) => setTimeout(resolve, 1000));
+		}
+	  }
+	};
+  
 	try {
-		// Determine viewer type
-		const isSupported = supportedMimeTypes[fileMime] || false;
-		const viewerUrl = 'https://docs.google.com/gview?url=' + encodeURIComponent(url) + '&embedded=true';
-
-		// Create view based on file type
-		if (imageTypes.includes(fileMime)) {
-			// Image handling
-			view = `
-				<div class="text-center">
-					<img 
-						src="${url}" 
-						alt="Preview" 
-						class="img-fluid" 
-						style="max-width: 100%; max-height: ${settings.height}; object-fit: contain;"
-						onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
-					/>
-				</div>
-			`;
-		} else if (isSupported) {
-			// Document handling (PDF, Excel, Word)
-			view = `
-				<iframe 
-					src="${viewerUrl}" 
-					width="${settings.width}" 
-					height="${settings.height}" 
-					frameborder="0"
-					onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
-				></iframe>
-			`;
-		} else {
-			// Fallback for unsupported types
-			view = `
-				<object 
-					type="${fileMime}" 
-					data="${url}" 
-					width="${settings.width}" 
-					height="${settings.height}"
-					onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
-				>
-					<p>${settings.errorMessage}</p>
-				</object>
-			`;
+	  // Determine viewer type
+	  const isSupported = supportedMimeTypes[fileMime] || false;
+	  const viewerUrl = "https://docs.google.com/gview?url=" + encodeURIComponent(url) + "&embedded=true";
+  
+	  // Use the new fetchWithRetry function
+	  await fetchWithRetry(url, settings.retry);
+  
+	  // Create view based on file type
+	  if (imageTypes.includes(fileMime)) {
+		// Image handling
+		view = `
+				  <div class="text-center">
+					  <img 
+						  src="${url}" 
+						  alt="Preview" 
+						  class="img-fluid" 
+						  style="max-width: 100%; max-height: ${settings.height}; object-fit: contain;"
+						  onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+					  />
+				  </div>
+			  `;
+	  } else if (isSupported) {
+		// Document handling (PDF, Excel, Word)
+		view = `
+				  <iframe 
+					  src="${viewerUrl}" 
+					  width="${settings.width}" 
+					  height="${settings.height}" 
+					  frameborder="0"
+					  onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+				  ></iframe>
+			  `;
+	  } else {
+		// Fallback for unsupported types
+		view = `
+				  <object 
+					  type="${fileMime}" 
+					  data="${url}" 
+					  width="${settings.width}" 
+					  height="${settings.height}"
+					  onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
+				  >
+					  <p>${settings.errorMessage}</p>
+				  </object>
+			  `;
+	  }
+  
+	  // Clear and populate the container
+	  $container.empty().css("display", "block").append(view);
+  
+	  // Handle modal/offcanvas
+	  if (settings.modal_id) {
+		const $modal = $(`#${settings.modal_id}`);
+  
+		if (settings.modal_type === "modal") {
+		  $modal.modal("show").css("z-index", 2000);
+		} else if (settings.modal_type === "offcanvas") {
+		  $modal.offcanvas("toggle").css("z-index", 2000);
 		}
-
-		// Clear and populate the container
-		$container.empty().css('display', 'block').append(view);
-
-		// Handle modal/offcanvas
-		if (settings.modal_id) {
-			const $modal = $(`#${settings.modal_id}`);
-
-			if (settings.modal_type === 'modal') {
-				$modal.modal('show').css('z-index', 2000);
-			} else if (settings.modal_type === 'offcanvas') {
-				$modal.offcanvas('toggle').css('z-index', 2000);
-			}
-		}
+	  }
 	} catch (error) {
-		// Error handling
-		showContainerError(settings.display_id, settings.errorMessage);
-		console.error('Error loading document:', error);
+	  // Error handling
+	  showContainerError(settings.display_id, settings.errorMessage);
+	  console.error("Error loading document:", error);
 	}
-};
+  };
 
 // DOWNLOAD FILES HELPER
 
@@ -2982,6 +3023,226 @@ const loadFormContent = async (idToLoad, filePath, urlFunc = null, dataArray = n
 			}
 		}
 	});
+}
+
+/**
+ * Loads a component from a PHP file with advanced loading and caching options
+ * 
+ * @param {string} idToLoad - The ID of the target DOM element to load content into
+ * @param {string} filePHPPath - The path to the PHP file to be loaded
+ * @param {Object} [config={}] - Configuration options for loading the component
+ * @param {Object} [config.data={}] - Additional data to send with the request
+ * @param {string} [config.baseUrl=base_url()] - Base URL for the request
+ * @param {string} [config.csrf_cookie_name=csrf_cookie_name] - CSRF token cookie name
+ * @param {number} [config.timeout=10000] - Request timeout in milliseconds
+ * @param {Function} [config.skeletonLoader] - Custom skeleton loader function
+ * @param {Function|string} [config.functionToLoad] - Function to call after loading content
+ * @param {Array} [config.functionParams=[]] - Parameters to pass to the function
+ * @param {Object} [config.cache={}] - Caching configuration
+ * @param {boolean} [config.cache.enabled=false] - Enable/disable caching
+ * @param {number} [config.cache.duration=300000] - Cache duration in milliseconds
+ * @param {Object} [config.errorHandling={}] - Error handling configuration
+ * @param {boolean} [config.errorHandling.showErrorMessage=true] - Show error messages
+ * @param {string} [config.errorHandling.errorClass='alert alert-danger'] - CSS class for error messages
+ * @param {string} [config.errorHandling.fallbackContent='Unable to load component'] - Fallback error message
+ * 
+ * @returns {Promise} A promise resolving with loading status, content, or error information
+ * 
+ * @example
+ * // Basic usage
+ * loadFileComponent('targetDiv', 'somePath.php');
+ * 
+ * @example
+ * // Usage with a function to call after loading
+ * loadFileComponent('targetDiv', 'somePath.php', {
+ *   functionToLoad: 'initializeMyComponent',
+ *   functionParams: [param1, param2]
+ * });
+ * 
+ * @example
+ * // Usage with an inline function
+ * loadFileComponent('targetDiv', 'somePath.php', {
+ *   functionToLoad: (element) => {
+ *     // Custom initialization logic
+ *     element.find('.my-class').on('click', handleClick);
+ *   }
+ * });
+ */
+async function loadFileComponent(idToLoad, filePHPPath, config = {}) {
+    // Default configuration
+    const defaultConfig = {
+        data: {},
+        baseUrl: base_url(),
+        csrf_cookie_name: csrf_cookie_name,
+        timeout: 10000,
+        skeletonLoader: null,
+        functionToLoad: null,
+        functionParams: [], // Supports passing multiple parameters
+        cache: {
+            enabled: false,
+            duration: 5 * 60 * 1000 // 5 minutes
+        },
+        errorHandling: {
+            showErrorMessage: true,
+            errorClass: 'alert alert-danger',
+            fallbackContent: 'Unable to load component'
+        }
+    };
+
+    // Merge default config with provided options
+    const mergedConfig = {
+        ...defaultConfig,
+        ...config,
+        cache: {
+            ...defaultConfig.cache,
+            ...(config.cache || {})
+        },
+        errorHandling: {
+            ...defaultConfig.errorHandling,
+            ...(config.errorHandling || {})
+        }
+    };
+
+    // Get the target element
+    const $targetElement = $(`#${idToLoad}`);
+
+    // Helper function to call the specified function after loading
+    const callFunctionAfterLoading = ($element, response) => {
+        if (mergedConfig.functionToLoad) {
+            try {
+                // If it's a string (function name)
+                if (typeof mergedConfig.functionToLoad === 'string') {
+                    const func = window[mergedConfig.functionToLoad];
+                    if (typeof func === 'function') {
+                        // Spread the actual parameters, preserving the original array/object
+                        func(...(mergedConfig.functionParams || []));
+                    } else {
+                        console.warn(`Function ${mergedConfig.functionToLoad} not found`);
+                    }
+                } 
+                // If it's a function
+                else if (typeof mergedConfig.functionToLoad === 'function') {
+                    // Pass element, response, and original parameters
+                    mergedConfig.functionToLoad($element, response, ...(mergedConfig.functionParams || []));
+                }
+            } catch (error) {
+                console.error('Error calling function after loading:', error);
+            }
+        }
+    };
+
+    try {
+		// Clear previous content
+		$targetElement.empty();
+
+		// Show skeleton loader if provided
+		if (typeof mergedConfig.skeletonLoader === 'function') {
+			$targetElement.html(mergedConfig.skeletonLoader());
+		} else {
+			// Default loading indicator
+			$targetElement.html(`
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `);
+		}
+
+		// Check cache first if enabled
+		const cacheKey = `loadFileComponent_${idToLoad}_${filePHPPath}`;
+		if (mergedConfig.cache.enabled) {
+			const cachedData = localStorage.getItem(cacheKey);
+			const cachedTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
+
+			if (cachedData && cachedTimestamp) {
+				const currentTime = new Date().getTime();
+				if (currentTime - parseInt(cachedTimestamp) < mergedConfig.cache.duration) {
+					$targetElement.html(cachedData);
+
+					// Call function for cached content
+					callFunctionAfterLoading($targetElement, cachedData);
+
+					return {
+						status: 'success',
+						source: 'cache',
+						element: $targetElement
+					};
+				}
+			}
+		}
+
+		// Perform AJAX request
+		return $.ajax({
+			type: "POST",
+			url: base_url() + 'public/custom/php/general.php',
+			data: {
+				baseUrl: mergedConfig.baseUrl,
+				fileName: filePHPPath,
+				dataArray: mergedConfig.data,
+			},
+			headers: {
+				"Authorization": "Bearer " + Cookies.get(mergedConfig.csrf_cookie_name),
+				"X-CSRF-TOKEN": Cookies.get(mergedConfig.csrf_cookie_name),
+			},
+			dataType: "html",
+			timeout: mergedConfig.timeout,
+			success: function (response) {
+				$targetElement.html(response);
+
+				// Cache content if enabled
+				if (mergedConfig.cache.enabled) {
+					localStorage.setItem(cacheKey, response);
+					localStorage.setItem(`${cacheKey}_timestamp`, new Date().getTime().toString());
+				}
+
+				// Call function after loading
+				callFunctionAfterLoading($targetElement, response);
+
+				return {
+					status: 'success',
+					source: 'fetch',
+					element: $targetElement,
+					content: response
+				};
+			},
+			error: function (xhr, status, error) {
+				console.error('Error loading component:', error);
+
+				// Error handling
+				if (mergedConfig.errorHandling.showErrorMessage) {
+					$targetElement.html(`
+                        <div class="${mergedConfig.errorHandling.errorClass}">
+                            ${mergedConfig.errorHandling.fallbackContent}: ${error}
+                        </div>
+                    `);
+				}
+
+				return {
+					status: 'error',
+					error: error,
+					element: $targetElement
+				};
+			}
+		});
+	} catch (error) {
+		console.error('Unexpected error:', error);
+
+		// Error handling
+		if (mergedConfig.errorHandling.showErrorMessage) {
+			$targetElement.html(`
+                <div class="${mergedConfig.errorHandling.errorClass}">
+                    ${mergedConfig.errorHandling.fallbackContent}: ${error}
+                </div>
+            `);
+		}
+
+		return {
+			status: 'error',
+			error: error,
+			element: $targetElement
+		};
+	}
 }
 
 /**

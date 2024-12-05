@@ -10,16 +10,20 @@ if (!function_exists('getMenu')) {
         $menuData = getMenuAbilities($menuLocation);
         $arrayMenu = array();
 
-        if ($menuData) {
+        if (hasData($menuData)) {
             foreach ($menuData as $main) {
+
+                if (!hasData($main))
+                    continue;
+
                 array_push($arrayMenu, [
-                    'menu_id' => $main['menu_id'],
+                    'id' => $main['id'],
                     'menu_title' => $main['menu_title'],
                     'menu_url' => $main['menu_url'],
                     'menu_order' => $main['menu_order'],
                     'menu_icon' => $main['menu_icon'],
                     'abilities_slug' => hasData($main, 'abilities.abilities_slug', true),
-                    'submenu' => getMenuAbilities($menuLocation, $main['menu_id']),
+                    'submenu' => getMenuAbilities($menuLocation, $main['id']),
                 ]);
             }
         }
@@ -35,7 +39,7 @@ if (!function_exists('getMenuAbilities')) {
         model('SystemMenuNavigation_model');
 
         return $ci->SystemMenuNavigation_model
-            ->select('id,menu_title,menu_url,menu_icon,abilities_id')
+            ->select('id,menu_title,menu_url,menu_order,menu_icon,abilities_id')
             ->with('abilities')
             ->where('is_active', '1')
             ->where('menu_location', $menuloc)
@@ -51,6 +55,7 @@ if (!function_exists('actionBtn')) {
     {
         // Define action types mapping
         $actionTypes = [
+            'view' => ['view'],
             'create' => ['add', 'create'],
             'edit' => ['edit', 'update'],
             'delete' => ['delete', 'remove', 'del', 'destroy']
@@ -73,11 +78,13 @@ if (!function_exists('actionBtn')) {
         // Default configurations
         $defaults = [
             'icons' => [
+                'view' => 'fa fa-eye',
                 'create' => 'fa fa-plus',
                 'edit' => 'fa fa-edit',
                 'delete' => 'fa fa-trash'
             ],
             'classes' => [
+                'view' => 'btn-primary',
                 'create' => 'btn-info',
                 'edit' => 'btn-success',
                 'delete' => 'btn-danger'

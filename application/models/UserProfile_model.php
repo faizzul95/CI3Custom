@@ -46,4 +46,13 @@ class UserProfile_model extends MY_Model
     {
         return $this->hasOne('EntityFile_model', 'entity_id', 'id');
     }
+
+    ###################################################################
+    #                    CUSTOM FUNCTION                              #
+    ###################################################################
+
+    public function getMainProfileBadgeAttribute()
+    {
+        return $this->is_main == 1 ? '<span class="badge badge-label bg-success"> Main Profile </span>' : null;
+    }
 }

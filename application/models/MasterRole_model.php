@@ -6,6 +6,7 @@ class MasterRole_model extends MY_Model
 {
     public $table = 'master_roles';
     public $primaryKey = 'id';
+    public $softDelete = true;
 
     public $fillable = [
         'role_name',
@@ -31,5 +32,24 @@ class MasterRole_model extends MY_Model
     public function permissions()
     {
         return $this->hasMany('SystemPermission_model', 'role_id', 'id');
+    }
+
+    public function users()
+    {
+        return $this->hasMany('UserProfile_model', 'role_id', 'id');
+    }
+
+    ###################################################################
+    #                    CUSTOM FUNCTION                              #
+    ###################################################################
+
+    public function getStatusAttribute()
+    {
+        return $this->role_status == 1 ? 'Active' : ($this->role_status == 0 ? 'Inactive' : '-');
+    }
+
+    public function getStatusBadgeAttribute()
+    {
+        return $this->role_status == 1 ? '<span class="badge badge-label bg-success">Active</span>' : ($this->role_status == 0 ? '<span class="badge badge-label bg-warning">Inactive</span>' : '-');
     }
 }

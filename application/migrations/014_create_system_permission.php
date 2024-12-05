@@ -2,6 +2,8 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+use App\constants\DefaultProfileRoleAbility;
+
 class Migration_create_system_permission extends CI_Migration
 {
 	public function __construct()
@@ -33,51 +35,30 @@ class Migration_create_system_permission extends CI_Migration
 
 	public function seeder()
 	{
-		$data = [
-			[
-				'role_id'	  		  => '1',
-				'abilities_id'	  	  => '1',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '2',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '3',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '4',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '5',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '6',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-			[
-				'role_id'	  		  => '2',
-				'abilities_id'	  	  => '7',
-				'access_device_type'  => '1',
-				'created_at'		  => timestamp(),
-			],
-		];
+		$defaultAbiities = DefaultProfileRoleAbility::ROLE_ABILITIES;
 
-		$this->db->insert_batch($this->table_name, $data);
+		model('SystemAbilities_model');
+		$listAbilities = $this->SystemAbilities_model->get();
+
+		$preparedData = [];
+		if (!empty($listAbilities)) {
+			foreach ($defaultAbiities as $role_id => $abilities) {
+				foreach ($abilities as $slug) {
+					$abilities_id = findInCollection($listAbilities, 'abilities_slug', $slug, 'id');
+					if (!empty($abilities_id)) {
+						array_push($preparedData, [
+							'role_id'	  		  => $role_id,
+							'abilities_id'	  	  => $abilities_id,
+							'access_device_type'  => '1',
+							'created_at'		  => timestamp(),
+						]);
+					}
+				}
+			}
+		}
+
+		if (!empty($preparedData)) {
+			$this->db->insert_batch($this->table_name, $preparedData);
+		}
 	}
 }

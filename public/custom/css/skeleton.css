@@ -21,6 +21,13 @@
 	text-align: center;
 }
 
+.skeleton-line {
+	height: 20px;
+	background-color: #e0e0e0;
+	margin-bottom: 10px;
+	animation: loading 1.5s infinite;
+}
+
 .skeleton-loader-content {
 	background: #f0f0f0;
 	border-radius: 4px;

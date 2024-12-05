@@ -26,6 +26,13 @@ class Auth extends MY_Controller
     {
         $validateRecaptcha = recaptchav2();
 
+        $response = array(
+            "code" => 400,
+            "message" => "Wrong username/email or password",
+            'verify' => false,
+            "redirectUrl" => NULL
+        );
+
         // Check with recaptcha first
         if ($validateRecaptcha['success']) {
 
@@ -97,12 +104,7 @@ class Auth extends MY_Controller
                 }
             }
         } else {
-            $response = array(
-                "code" => 400,
-                "message" => filter_var(env('APP_DEBUG'), FILTER_VALIDATE_BOOLEAN) ? $validateRecaptcha['error_message'] : "Please verify that you're a human",
-                'verify' => false,
-                "redirectUrl" => NULL,
-            );
+            $response['message'] = filter_var(env('APP_DEBUG'), FILTER_VALIDATE_BOOLEAN) ? $validateRecaptcha['error_message'] : "Please verify that you're a human";
         }
 
         jsonResponse($response);
@@ -150,7 +152,7 @@ class Auth extends MY_Controller
 
         setSession([
             'userID'  => $userID,
-            'userAvatar'  => asset(hasData($data, 'avatar.files_path', true, 'upload/images/defaultUser.png')),
+            'userAvatar'  => asset(hasData($data, 'avatar.files_path', true, 'public/upload/images/defaultUser.png'), false),
             'profileID'  => hasData($data, 'id', true),
             'profileName' => hasData($data, 'roles.role_name', true),
             'roleID' => hasData($data, 'roles.id', true),
@@ -181,7 +183,7 @@ class Auth extends MY_Controller
                     'userFullName'  => hasData($dataUser, 'name', true, 'N/A'),
                     'userNickName'  => hasData($dataUser, 'user_preferred_name', true, 'N/A'),
                     'userEmail'  => hasData($dataUser, 'email', true, 'N/A'),
-                    'userAvatar'  => asset(hasData($dataUser, 'main_profile.avatar.files_path', true, 'upload/images/defaultUser.png')),
+                    'userAvatar'  => asset(hasData($dataUser, 'avatar.files_path', true, 'public/upload/images/defaultUser.png'), false),
                     'profileID'  => hasData($dataUser, 'main_profile.id', true),
                     'profileName' => hasData($dataUser, 'main_profile.roles.role_name', true),
                     'roleID' => hasData($dataUser, 'main_profile.roles.id', true),
