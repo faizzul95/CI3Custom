@@ -156,7 +156,7 @@ class User extends MY_Controller
             $userID = input('user_id');
             $dataUser = $this->User_model->select(['id', 'password'])->find($userID);
 
-            $rules = ['field' => 'confirmpassword', 'label' => 'Pengesahan Kata Laluan', 'rules' => 'trim|required|min_length[4]|max_length[20]'];
+            $rules = ['field' => 'confirmpassword', 'label' => 'Confirm password', 'rules' => 'trim|required|min_length[4]|max_length[20]'];
 
             $canUpdate = isSuperadmin() || isAdmin() ? true : password_verify(input('oldpassword'), $dataUser['password']);
 

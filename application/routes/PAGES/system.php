@@ -100,8 +100,8 @@ Route::group('/sys-rbac', function () {
     // Load the page for settings
     Route::get('/', function () {
         render('system/_main_rbac', [
-            'title' => 'Tetapan Sistem',
-            'currentSidebar' => 'Tetapan',
+            'title' => 'System Settings',
+            'currentSidebar' => 'Settings',
             'currentSubSidebar' => null,
             'permission' => permission(
                 [
@@ -114,9 +114,9 @@ Route::group('/sys-rbac', function () {
     // Load the page for roles
     Route::get('/roles-list-pages', function () {
         render('system/list_roles', [
-            'title' => 'Tetapan Sistem',
-            'currentSidebar' => 'Tetapan',
-            'currentSubSidebar' => 'Peranan',
+            'title' => 'System Settings',
+            'currentSidebar' => 'Settings',
+            'currentSubSidebar' => 'Roles',
             'permission' => permission(
                 [
                     'roles-view',
@@ -129,9 +129,9 @@ Route::group('/sys-rbac', function () {
     // Load the page for menu navigation
     Route::get('/menu-list-pages', function () {
         render('system/list_menu_navigation', [
-            'title' => 'Tetapan Sistem',
-            'currentSidebar' => 'Tetapan',
-            'currentSubSidebar' => 'Navigasi Menu',
+            'title' => 'System Settings',
+            'currentSidebar' => 'Settings',
+            'currentSubSidebar' => 'Menu Navigation',
             'permission' => permission(
                 [
                     'menu-navigation-view',
@@ -144,8 +144,8 @@ Route::group('/sys-rbac', function () {
     // Load the page for email
     Route::get('/email-list-pages', function () {
         render('system/_email_section', [
-            'title' => 'Tetapan Sistem',
-            'currentSidebar' => 'Tetapan',
+            'title' => 'System Settings',
+            'currentSidebar' => 'Settings',
             'currentSubSidebar' => 'Email',
             'permission' => permission(
                 [
@@ -158,9 +158,9 @@ Route::group('/sys-rbac', function () {
     // Load the page for developer zone
     Route::get('/developer-list-pages', function () {
         render('system/developer_section', [
-            'title' => 'Tetapan Sistem',
-            'currentSidebar' => 'Tetapan',
-            'currentSubSidebar' => 'Zon Pembangun',
+            'title' => 'System Settings',
+            'currentSidebar' => 'Settings',
+            'currentSubSidebar' => 'Developer zone',
             'permission' => null
         ]);
     });

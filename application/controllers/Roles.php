@@ -1,5 +1,6 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
+
 class Roles extends MY_Controller
 {
     public function __construct()
@@ -65,7 +66,7 @@ class Roles extends MY_Controller
         $data = $this->request->all();
 
         // Default messaege
-        $response = ['code' => 422, 'message' => 'Peranan gagal disimpan'];
+        $response = ['code' => 422, 'message' => 'Roles fail to save'];
 
         // Get the info from the form
         $id = hasData($data, 'id', true);
@@ -85,7 +86,7 @@ class Roles extends MY_Controller
     public function select($id = NULL)
     {
         $dataRoles = $this->MasterRole_model->where('role_status', 1)->get();
-        $selectData = '<option value=""> - Pilih - </option>';
+        $selectData = '<option value=""> - Select - </option>';
 
         $listData = [];
         if (hasData($id)) {
