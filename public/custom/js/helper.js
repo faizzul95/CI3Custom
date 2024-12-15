@@ -81,6 +81,7 @@ let localeMapCurrency = {
 		decimal: 0
 	}, // Indonesian Rupiah (IDR)
 };
+let language = 'en';
 
 // Global error handling function
 window.showContainerError = function (display_id, message) {
@@ -1409,6 +1410,58 @@ const asset = (path, isPublic = true) => {
 
 // MODAL (BOOTSTRAP) HELPER
 
+const findOpenModal = () => {
+	// Create an array to store all open modals and offcanvas elements
+	const openModals = [
+		// Bootstrap modal
+		...$('.modal.show').toArray(),
+
+		// Bootstrap offcanvas
+		...$('.offcanvas.show').toArray(),
+
+		// Foundation modal
+		...$('.reveal.open').toArray(),
+
+		// UIkit modal
+		...$('.uk-modal.uk-open').toArray()
+	];
+
+	// If no modals are open, return null
+	if (openModals.length === 0) return null;
+
+	// Sort modals by their z-index to find the topmost (latest) modal
+	const sortedModals = openModals.sort((a, b) => {
+		const zIndexA = parseInt($(a).css('z-index')) || 0;
+		const zIndexB = parseInt($(b).css('z-index')) || 0;
+		return zIndexB - zIndexA;
+	});
+
+	// Return the ID of the topmost (latest) modal
+	return $(sortedModals[0]).attr('id');
+}
+
+const closeLatestModal = (timeSet = 0) => {
+	const modalId = findOpenModal();
+	if (modalId) {
+		const $modal = $(`#${modalId}`);
+
+		setTimeout(function () {
+			// Determine the type of modal and use appropriate closing method
+			if ($modal.hasClass('modal')) {
+				$modal.modal('hide');
+			} else if ($modal.hasClass('offcanvas')) {
+				$modal.offcanvas('hide');
+			} else if ($modal.hasClass('reveal')) {
+				// Foundation modal closing method
+				$modal.foundation('close');
+			} else if ($modal.hasClass('uk-modal')) {
+				// UIkit modal closing method
+				UIkit.modal($modal).hide();
+			}
+		}, timeSet);
+	}
+}
+
 const showModal = (id, timeSet = 0) => {
 	setTimeout(function () {
 		$(id).modal('show');
@@ -1719,17 +1772,16 @@ const submitApi = async (url, dataObj, formID = null, reloadFunction = null, per
 						reloadFunction();
 					}
 
-					if (formID != null) {
+					if (isset(formID)) {
 						if (closedModal) {
 							var modalID = $('#' + formID).attr('data-modal');
 							setTimeout(function () {
 								if (modalID == '#generaloffcanvas-right') {
 									$(modalID).offcanvas('toggle');
 								} else {
-									// $('#' + modalID).modal('hide');
 									$(modalID).modal('hide');
 								}
-							}, 350);
+							}, 300);
 						}
 					}
 
@@ -1838,7 +1890,7 @@ const deleteApi = async (id, url, reloadFunction = null, permissions = null) => 
 						error_count++;
 					}
 				} else {
-					noti(500, 'Something went wrong');
+					noti(422, 'Something went wrong');
 				}
 				return res;
 			}
@@ -1876,7 +1928,7 @@ const callApi = async (method = 'POST', url, dataObj = null, permissions = null)
 		})
 			.catch(error => {
 				log('ERROR CallApi 1');
-				let textMessage = isset(error.response.data.message) ? error.response.data.message : error.response.statusText;
+				let textMessage = hasData(error, 'response.data.message', true, error.response.statusText);
 
 				if (isError(error.response.status)) {
 					noti(error.response.status, textMessage);
@@ -1904,7 +1956,7 @@ const callApi = async (method = 'POST', url, dataObj = null, permissions = null)
 				// }
 				noti(res.response.status, res.response.data.message);
 			} else {
-				noti(500, 'Something went wrong');
+				noti(422, 'Something went wrong');
 			}
 			return res;
 		}
@@ -1919,23 +1971,30 @@ const noti = (code = 400, text = 'Something went wrong') => {
 		202: 'Accepted', // request accepted for processing but not yet completed, might be disallowed later
 		204: 'No Content', // DELETE/PUT fulfilled, MUST NOT include message-body
 		301: 'Moved Permanently', // The URL of the requested resource has been changed permanently
+		302: 'Found', // Temporary redirect, MUST include Location header
 		304: 'Not Modified', // If-Modified-Since, MUST include Date header
+		307: 'Temporary Redirect', // Temporary redirect, MUST NOT change HTTP method
 		400: 'Bad Request', // malformed syntax
 		401: 'Unauthorized', // Indicates that the request requires user authentication information. The client MAY repeat the request with a suitable Authorization header field
 		403: 'Forbidden', // unauthorized
 		404: 'Not Found', // request URI does not exist
 		405: 'Method Not Allowed', // HTTP method unavailable for URI, MUST include Allow header
+		406: 'Not Acceptable', // The resource identified by the request is only capable of generating response entities which have content characteristics not acceptable according to the accept headers sent in the request.
+		408: 'Request Timeout', // The client did not produce a request within the server's timeout period.
+		410: 'Gone', // The resource is no longer available and will not be available again.
 		415: 'Unsupported Media Type', // unacceptable request payload format for resource and/or method
+		422: 'Unprocessable Entity', // The server understands the content type of the request entity, and the syntax is correct, but it was unable to process the contained instructions.
 		426: 'Upgrade Required',
 		429: 'Too Many Requests',
 		451: 'Unavailable For Legal Reasons', // REDACTED
 		500: 'Internal Server Error', // all other errors
 		501: 'Not Implemented', // (currently) unsupported request method
-		503: 'Service Unavailable' // The server is not ready to handle the request.
+		502: 'Bad Gateway', // The server, while acting as a gateway or proxy, received an invalid response from an upstream server.
+		503: 'Service Unavailable', // The server is not ready to handle the request.
+		504: 'Gateway Timeout', // The server, while acting as a gateway or proxy, did not receive a timely response from an upstream server.
 	};
 
 	var resCode = typeof code === 'number' ? code : code.status;
-	var textResponse = apiStatus[code];
 
 	var messageText = isSuccess(resCode) ? ucfirst(text) + ' successfully' : isUnauthorized(resCode) ? 'Unauthorized: Access is denied' : isError(resCode) ? text : 'Something went wrong';
 	var type = isSuccess(code) ? 'success' : 'error';
@@ -1979,6 +2038,377 @@ const isUnauthorized = (res) => {
 	const status = typeof res === 'number' ? res : res.status;
 	return unauthorizedStatus.includes(status);
 }
+
+// CUSTOM FUNCTION FOR MY_MODEL
+
+const actionApi = async (method = 'GET', url, config = {}) => {
+	const translations = {
+		en: {
+			loading: "Submitting...",
+			estimatedTime: "Estimated time remaining",
+			hour: "hour",
+			minute: "minute",
+			second: "second(s)",
+			submit: "Submit",
+			uploadProgress: "{uploadedSize} of {totalSize} | {estimatedTime}: {remainingTimeText}",
+		},
+		my: {
+			loading: "Menghantar...",
+			estimatedTime: "Anggaran masa yang tinggal",
+			hour: "jam",
+			minute: "minit",
+			second: "saat",
+			submit: "Hantar",
+			uploadProgress: "{uploadedSize} daripada {totalSize} | {estimatedTime}: {remainingTimeText}",
+		}
+	};
+
+	const t = translations[language.toLowerCase()] || translations.en;
+
+	// Default configuration
+	const defaultConfig = {
+		actionType: null,
+		formId: null,
+		closedModal: false,
+		loadingBtnId: null,
+		showAlertMessage: false,
+		responseMessage: false,
+		allowValidationMessage: false,
+		uploadForm: false,
+		uploadProgressId: null,
+		reloadFunction: null,
+		reloadParams: [],
+		permissions: null,
+		data: null
+	};
+
+	const mergedConfig = { ...defaultConfig, ...config };
+	let dataToSend = mergedConfig.data;
+	let formData = null;
+
+	if (mergedConfig.formId) {
+		const form = $('#' + mergedConfig.formId);
+		formData = new FormData(form[0]);
+		formData.append(csrf_token_name, Cookies.get(csrf_cookie_name));
+	}
+
+	const axiosConfig = {
+		method: method.toLowerCase(),
+		url: urls(url),
+		headers: {
+			"Authorization": `Bearer ${Cookies.get(csrf_cookie_name)}`,
+			'X-Requested-With': 'XMLHttpRequest',
+			'X-CSRF-TOKEN': Cookies.get(csrf_cookie_name),
+			'X-Permission': mergedConfig.permissions
+		}
+	};
+
+	if (mergedConfig.loadingBtnId) {
+		const $btn = $('#' + mergedConfig.loadingBtnId);
+		$btn.data('original-text', $btn.html());
+		$btn.html(`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${t.loading}`);
+		$btn.attr('disabled', true);
+	}
+
+	if (mergedConfig.uploadForm) {
+		axiosConfig.headers['content-type'] = 'multipart/form-data';
+
+		if (mergedConfig.uploadProgressId) {
+			const timeStarted = new Date().getTime();
+			const $progressContainer = $('#' + mergedConfig.uploadProgressId);
+
+			axiosConfig.onUploadProgress = (progressEvent) => {
+				const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+				const uploadedSize = sizeToText(progressEvent.loaded);
+				const totalSize = sizeToText(progressEvent.total);
+
+				const progress = progressEvent.loaded / progressEvent.total;
+				const timeSpent = new Date().getTime() - timeStarted;
+				const secondsRemaining = Math.round(((timeSpent / progress) - timeSpent) / 1000);
+
+				let remainingTimeText = '';
+				if (secondsRemaining >= 3600) {
+					remainingTimeText = `${Math.floor(secondsRemaining / 3600)} ${t.hour} ${Math.floor((secondsRemaining % 3600) / 60)} ${t.minute}`;
+				} else if (secondsRemaining >= 60) {
+					remainingTimeText = `${Math.floor(secondsRemaining / 60)} ${t.minute} ${secondsRemaining % 60} ${t.second}`;
+				} else {
+					remainingTimeText = `${secondsRemaining} ${t.second}`;
+				}
+
+				let progressBarClass = 'bg-danger';
+				if (percentCompleted > 40 && percentCompleted <= 60) {
+					progressBarClass = 'bg-warning';
+				} else if (percentCompleted > 60 && percentCompleted <= 99) {
+					progressBarClass = 'bg-info';
+				} else if (percentCompleted === 100) {
+					progressBarClass = 'bg-success';
+				}
+
+				$progressContainer.html(`
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="progress">
+                                <div class="progress-bar ${progressBarClass} progress-bar-striped progress-bar-animated" 
+                                    role="progressbar" 
+                                    style="width: ${percentCompleted}%" 
+                                    aria-valuenow="${percentCompleted}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                    ${percentCompleted}%
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-2 text-center">
+                            <small>
+                                ${t.uploadProgress
+						.replace('{uploadedSize}', uploadedSize)
+						.replace('{totalSize}', totalSize)
+						.replace('{estimatedTime}', t.estimatedTime)
+						.replace('{remainingTimeText}', remainingTimeText)}
+                            </small>
+                        </div>
+                    </div>
+                `);
+
+				if (percentCompleted === 100) {
+					setTimeout(() => {
+						$progressContainer.empty();
+					}, 1500);
+				}
+			};
+		}
+	} else {
+		axiosConfig.headers['content-type'] = 'application/x-www-form-urlencoded';
+	}
+
+	if (['post', 'put'].includes(method.toLowerCase())) {
+		if (mergedConfig.formId) {
+			axiosConfig.data = formData || dataToSend;
+		} else {
+			dataToSend[csrf_token_name] = Cookies.get(csrf_cookie_name);
+			axiosConfig.data = new URLSearchParams(dataToSend);
+		}
+	}
+
+	try {
+		return axios(axiosConfig).then(result => {
+
+			if (mergedConfig.loadingBtnId) {
+				const $btn = $('#' + mergedConfig.loadingBtnId);
+				$btn.html($btn.data('original-text') || t.submit);
+				$btn.attr('disabled', false);
+			}
+
+			if (mergedConfig.closedModal) {
+				closeLatestModal(200);
+			}
+
+			if (mergedConfig.reloadFunction) {
+				mergedConfig.reloadFunction(...mergedConfig.reloadParams);
+			}
+
+			if (mergedConfig.showAlertMessage) {
+				const notifyCode = result.data?.code || result.status;
+				const notifyAction = hasData(mergedConfig, 'actionType', true, result.data?.action || 'view');
+				const customMessage = mergedConfig.responseMessage ? result.data?.message : null;
+
+				notify(notifyAction, notifyCode, customMessage || '');
+			}
+
+			return result;
+		})
+			.catch(error => {
+				log('ERROR ActionApi 1');
+
+				if (mergedConfig.loadingBtnId) {
+					const $btn = $('#' + mergedConfig.loadingBtnId);
+					$btn.html($btn.data('original-text') || t.submit);
+					$btn.attr('disabled', false);
+				}
+
+				if (mergedConfig.showAlertMessage) {
+					const errorCode = error.response?.data?.code || 400;
+					const errorAction = hasData(mergedConfig, 'actionType', true, error.response?.data?.action || 'view');
+					let errorMessage = mergedConfig.responseMessage ? error.response?.data?.message : null;
+
+					if (mergedConfig.allowValidationMessage && errorCode === 422) {
+						errorMessage = error.response?.data?.message || errorMessage;
+					}
+
+					notify(errorAction, errorCode, errorMessage || '');
+				}
+
+				return error.response;
+			});
+	} catch (e) {
+		log('ERROR ActionApi 2');
+		const res = e.response;
+
+		if (mergedConfig.loadingBtnId) {
+			const $btn = $('#' + mergedConfig.loadingBtnId);
+			$btn.html($btn.data('original-text') || t.submit);
+			$btn.attr('disabled', false);
+		}
+
+		if (mergedConfig.showAlertMessage) {
+			const errorCode = res?.data?.code || 400;
+			const errorAction = hasData(mergedConfig, 'actionType', true, res?.data?.action || 'view');
+			const errorMessage = mergedConfig.responseMessage ? res?.data?.message : null;
+
+			notify(errorAction, errorCode, errorMessage || '');
+		}
+
+		return res;
+	}
+};
+
+const notify = (action = 'view', code = 400, custom_message_text = null) => {
+
+	const apiStatus = {
+		200: { en: 'OK', my: 'Berjaya' },
+		201: { en: 'Created', my: 'Berhasil Dicipta' },
+		202: { en: 'Accepted', my: 'Diterima' },
+		204: { en: 'No Content', my: 'Tiada Kandungan' },
+		301: { en: 'Moved Permanently', my: 'Dipindahkan Secara Kekal' },
+		302: { en: 'Found', my: 'Ditemui' },
+		304: { en: 'Not Modified', my: 'Tidak Diubah' },
+		307: { en: 'Temporary Redirect', my: 'Pengalihan Sementara' },
+		400: { en: 'Bad Request', my: 'Permintaan Tidak Sah' },
+		401: { en: 'Unauthorized', my: 'Tidak Dibenarkan' },
+		403: { en: 'Forbidden', my: 'Dilarang' },
+		404: { en: 'Not Found', my: 'Tidak Dijumpai' },
+		405: { en: 'Method Not Allowed', my: 'Kaedah Tidak Dibenarkan' },
+		406: { en: 'Not Acceptable', my: 'Tidak Boleh Diterima' },
+		408: { en: 'Request Timeout', my: 'Permintaan Tamat Masa' },
+		410: { en: 'Gone', my: 'Tidak Wujud Lagi' },
+		415: { en: 'Unsupported Media Type', my: 'Jenis Media Tidak Disokong' },
+		422: { en: 'Unprocessable Entity', my: 'Entiti Tidak Dapat Diproses' },
+		426: { en: 'Upgrade Required', my: 'Naik Taraf Diperlukan' },
+		429: { en: 'Too Many Requests', my: 'Terlalu Banyak Permintaan' },
+		451: { en: 'Unavailable For Legal Reasons', my: 'Tidak Tersedia Atas Sebab Undang-Undang' },
+		500: { en: 'Internal Server Error', my: 'Ralat Pelayan Dalaman' },
+		501: { en: 'Not Implemented', my: 'Tidak Dilaksanakan' },
+		502: { en: 'Bad Gateway', my: 'Gateway Tidak Sah' },
+		503: { en: 'Service Unavailable', my: 'Perkhidmatan Tidak Tersedia' },
+		504: { en: 'Gateway Timeout', my: 'Gateway Tamat Masa' }
+	};
+
+	const messages = {
+		en: {
+			create: { success: 'New data created successfully', error: 'Failed to create new data' },
+			update: { success: 'Update successfully', error: 'Failed to update data' },
+			delete: { success: 'Delete successfully', error: 'Failed to delete data' },
+			view: { success: 'Data retrieved successfully', error: 'Failed to retrieve data' },
+			search: { success: 'Search completed successfully', error: 'Search operation failed' },
+			export: { success: 'Data exported successfully', error: 'Failed to export data' },
+			import: { success: 'Data imported successfully', error: 'Failed to import data' },
+			upload: { success: 'Upload files successfully', error: 'Failed to upload files' },
+			restore: { success: 'Data restored successfully', error: 'Failed to restore data' },
+			archive: { success: 'Data archived successfully', error: 'Failed to archive data' },
+			reset: { success: 'Reset completed successfully', error: 'Failed to reset' },
+			generate: { success: 'Generated successfully', error: 'Generation failed' },
+			clone: { success: 'Duplicated successfully', error: 'Duplication failed' },
+			login: { success: 'Login successfully', error: 'Invalid username/email or password' },
+			sync: { success: 'Synchronized successfully', error: 'Synchronization failed' }
+		},
+		my: {
+			create: { success: 'Data baru berjaya ditambah', error: 'Gagal menambah data baru' },
+			update: { success: 'Data berjaya dikemaskini', error: 'Gagal mengemaskini data' },
+			delete: { success: 'Data berjaya dihapuskan', error: 'Gagal menghapuskan data' },
+			view: { success: 'Data berjaya diperoleh', error: 'Gagal memperoleh data' },
+			search: { success: 'Carian berjaya diselesaikan', error: 'Carian gagal diselesaikan' },
+			export: { success: 'Data berjaya dieksport', error: 'Gagal mengeksport data' },
+			import: { success: 'Data berjaya diimport', error: 'Gagal mengimport data' },
+			upload: { success: 'Fail berjaya dimuat naik', error: 'Gagal memuat naik fail' },
+			restore: { success: 'Data berjaya dipulihkan', error: 'Gagal memulihkan data' },
+			archive: { success: 'Data berjaya diarkibkan', error: 'Gagal mengarkibkan data' },
+			reset: { success: 'Set semula berjaya', error: 'Gagal menetapkan semula' },
+			generate: { success: 'Berjaya dijana', error: 'Gagal menjana' },
+			clone: { success: 'Berjaya diduplikasi', error: 'Gagal menduplikasi' },
+			login: { success: 'Log masuk berjaya', error: 'Salah kata laluan atau nama pengguna' },
+			sync: { success: 'Berjaya diselaraskan', error: 'Gagal menyelaraskan' }
+		}
+	};
+
+	// Validate language
+	const lang = language.toLowerCase() === 'my' ? 'my' : 'en';
+
+	// Validate action
+	const operation = hasData(messages[lang], strtolower(action)) ? strtolower(action) : null;
+
+	// Determine code
+	const resCode = typeof code === 'number' ? code : code.status;
+
+	// Prepare notification details
+	let messageText = '';
+	let type = 'error';
+	let title = 'Ops!';
+	let statusText = apiStatus[resCode] ? apiStatus[resCode][lang] : 'Tidak Diketahui';
+
+	if (isSuccess(resCode)) {
+		type = 'success';
+		title = lang === 'en' ? 'Great!' : 'Berjaya!';
+		messageText = messages[lang][operation] ? messages[lang][operation].success : custom_message_text;
+	} else if (isUnauthorized(resCode)) {
+		title = (lang === 'en') ? 'Ops!' : 'Ralat!';
+		messageText = lang === 'en' ? 'Unauthorized: Access is denied' : 'Tidak Sah: Akses Ditolak';
+	} else if (isError(resCode)) {
+		title = (lang === 'en') ? 'Ops!' : 'Ralat!';
+		messageText = messages[lang][operation] ? messages[lang][operation].error : 'Terdapat ralat dalam sistem';
+	} else {
+		title = (lang === 'en') ? 'Ops!' : 'Ralat!';
+		messageText = (lang === 'en') ? 'Something went wrong' : 'Terdapat ralat dalam sistem';
+	}
+
+	if (hasData(custom_message_text) && !isUnauthorized(resCode)) {
+		messageText = custom_message_text;
+	}
+
+	// Check if toastr is defined
+	if (typeof toastr !== 'undefined') {
+		toastr.options = {
+			"debug": false,
+			"closeButton": !isMobileJs(),
+			"newestOnTop": true,
+			"progressBar": !isMobileJs(),
+			"positionClass": !isMobileJs() ? "toast-top-right" : "toast-bottom-full-width",
+			"preventDuplicates": isMobileJs(),
+			"onclick": null,
+			"showDuration": "300",
+			"hideDuration": "1000",
+			"timeOut": "8000",
+			"extendedTimeOut": "1000",
+			"showEasing": "swing",
+			"hideEasing": "linear",
+			"showMethod": "fadeIn",
+			"hideMethod": "fadeOut"
+		}
+
+		Command: toastr[type](messageText, title);
+	} else {
+		// Fallback to standard JavaScript alert
+		const alertMessage = `${title}\n\n${messageText}\n\nStatus: ${statusText}`;
+
+		if (type === 'error') {
+			console.error(alertMessage);
+		} else {
+			console.log(alertMessage);
+		}
+
+		alert(alertMessage);
+
+		// Return an object with all details for flexibility
+		return {
+			action: operation,
+			code: resCode,
+			status: statusText,
+			message: messageText,
+			type: type,
+			title: title,
+			language: lang
+		};
+	}
+};
 
 //  BASE64-ENCODING HELPER
 
@@ -2315,7 +2745,7 @@ const generateServerDt = (id, url = null, nodatadiv = 'nodatadiv', dataObj = nul
 		"language": {
 			// "searchPlaceholder": 'Carian...',
 			// "sSearch": '',
-			// "lengthMenu": '_MENU_ item / halaman',
+			// "lengthMenu": '_MENU_ rekod / halaman',
 			// "paginate": {
 			// 	"first": "Pertama",
 			// 	"last": "Terakhir",
@@ -2434,36 +2864,36 @@ const previewPDF = (fileLoc, fileMime, divToLoadID, modalId = null) => {
 const previewFiles = async (fileLoc, fileMime, options = {}) => {
 	// Default options
 	const defaults = {
-	  display_id: "showDocument",
-	  modal_id: "",
-	  modal_type: "modal",
-	  height: "650px",
-	  width: "100%",
-	  errorMessage: "Unable to load the document. Please check the file or try again later.",
-	  loaderMessage: "Loading preview...",
-	  retry: 3, 
-	  skeletonLoader: null, 
+		display_id: "showDocument",
+		modal_id: "",
+		modal_type: "modal",
+		height: "650px",
+		width: "100%",
+		errorMessage: "Unable to load the document. Please check the file or try again later.",
+		loaderMessage: "Loading preview...",
+		retry: 3,
+		skeletonLoader: null,
 	};
-  
+
 	// Merge default options with provided options
 	const settings = {
-	  ...defaults,
-	  ...options,
+		...defaults,
+		...options,
 	};
-  
+
 	// Validate inputs
 	if (!fileLoc || !fileMime) {
-	  console.error("Invalid file location or MIME type");
-	  return;
+		console.error("Invalid file location or MIME type");
+		return;
 	}
-  
+
 	// Add skeleton loader
 	const $container = $(`#${settings.display_id}`);
 	$container.empty().css("display", "block");
-  
+
 	// Use custom skeleton loader if provided, otherwise use default
 	if (typeof settings.skeletonLoader === "function") {
-	  	$container.append(settings.skeletonLoader());
+		$container.append(settings.skeletonLoader());
 	} else {
 		// Default loading indicator
 		$container.append(`
@@ -2474,78 +2904,78 @@ const previewFiles = async (fileLoc, fileMime, options = {}) => {
 			</div>
 		`);
 	}
-  
+
 	const url = base_url() + fileLoc;
 	let view = "";
-  
+
 	// Supported MIME types mapping
 	const supportedMimeTypes = {
-	  "application/pdf": true,
-	  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
-	  "application/vnd.ms-excel": true,
-	  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
-	  "application/msword": true,
-	  // Image MIME types
-	  "image/jpeg": true,
-	  "image/png": true,
-	  "image/gif": true,
-	  "image/bmp": true,
-	  "image/webp": true,
-	  "image/svg+xml": false,
+		"application/pdf": true,
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": true,
+		"application/vnd.ms-excel": true,
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document": true,
+		"application/msword": true,
+		// Image MIME types
+		"image/jpeg": true,
+		"image/png": true,
+		"image/gif": true,
+		"image/bmp": true,
+		"image/webp": true,
+		"image/svg+xml": false,
 	};
-  
+
 	// Image MIME types
 	const imageTypes = [
-	  "image/jpeg",
-	  "image/png",
-	  "image/gif",
-	  "image/bmp",
-	  "image/webp",
-	  "image/svg+xml",
+		"image/jpeg",
+		"image/png",
+		"image/gif",
+		"image/bmp",
+		"image/webp",
+		"image/svg+xml",
 	];
-  
+
 	// Retry fetch with configurable attempts
 	const fetchWithRetry = async (url, retries = 1) => {
-	  for (let attempt = 1; attempt <= retries; attempt++) {
-		try {
-		  const response = await fetch(url);
-  
-		  // Check for 200 status
-		  if (response.status === 200) {
-			return response;
-		  }
-  
-		  // If not 200 and this is the last retry, throw an error
-		  if (attempt === retries) {
-			throw new Error(`HTTP error! status: ${response.status}`);
-		  }
-  
-		  // Wait a moment before retrying
-		  await new Promise((resolve) => setTimeout(resolve, 1000));
-		} catch (error) {
-		  // If this is the last retry, throw the error
-		  if (attempt === retries) {
-			throw error;
-		  }
-  
-		  // Wait a moment before retrying
-		  await new Promise((resolve) => setTimeout(resolve, 1000));
+		for (let attempt = 1; attempt <= retries; attempt++) {
+			try {
+				const response = await fetch(url);
+
+				// Check for 200 status
+				if (response.status === 200) {
+					return response;
+				}
+
+				// If not 200 and this is the last retry, throw an error
+				if (attempt === retries) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+
+				// Wait a moment before retrying
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			} catch (error) {
+				// If this is the last retry, throw the error
+				if (attempt === retries) {
+					throw error;
+				}
+
+				// Wait a moment before retrying
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+			}
 		}
-	  }
 	};
-  
+
 	try {
-	  // Determine viewer type
-	  const isSupported = supportedMimeTypes[fileMime] || false;
-	  const viewerUrl = "https://docs.google.com/gview?url=" + encodeURIComponent(url) + "&embedded=true";
-  
-	  // Use the new fetchWithRetry function
-	  await fetchWithRetry(url, settings.retry);
-  
-	  // Create view based on file type
-	  if (imageTypes.includes(fileMime)) {
-		// Image handling
-		view = `
+		// Determine viewer type
+		const isSupported = supportedMimeTypes[fileMime] || false;
+		const viewerUrl = "https://docs.google.com/gview?url=" + encodeURIComponent(url) + "&embedded=true";
+
+		// Use the new fetchWithRetry function
+		await fetchWithRetry(url, settings.retry);
+
+		// Create view based on file type
+		if (imageTypes.includes(fileMime)) {
+			// Image handling
+			view = `
 				  <div class="text-center">
 					  <img 
 						  src="${url}" 
@@ -2556,9 +2986,9 @@ const previewFiles = async (fileLoc, fileMime, options = {}) => {
 					  />
 				  </div>
 			  `;
-	  } else if (isSupported) {
-		// Document handling (PDF, Excel, Word)
-		view = `
+		} else if (isSupported) {
+			// Document handling (PDF, Excel, Word)
+			view = `
 				  <iframe 
 					  src="${viewerUrl}" 
 					  width="${settings.width}" 
@@ -2567,9 +2997,9 @@ const previewFiles = async (fileLoc, fileMime, options = {}) => {
 					  onerror="showContainerError('${settings.display_id}', '${settings.errorMessage}')"
 				  ></iframe>
 			  `;
-	  } else {
-		// Fallback for unsupported types
-		view = `
+		} else {
+			// Fallback for unsupported types
+			view = `
 				  <object 
 					  type="${fileMime}" 
 					  data="${url}" 
@@ -2580,27 +3010,27 @@ const previewFiles = async (fileLoc, fileMime, options = {}) => {
 					  <p>${settings.errorMessage}</p>
 				  </object>
 			  `;
-	  }
-  
-	  // Clear and populate the container
-	  $container.empty().css("display", "block").append(view);
-  
-	  // Handle modal/offcanvas
-	  if (settings.modal_id) {
-		const $modal = $(`#${settings.modal_id}`);
-  
-		if (settings.modal_type === "modal") {
-		  $modal.modal("show").css("z-index", 2000);
-		} else if (settings.modal_type === "offcanvas") {
-		  $modal.offcanvas("toggle").css("z-index", 2000);
 		}
-	  }
+
+		// Clear and populate the container
+		$container.empty().css("display", "block").append(view);
+
+		// Handle modal/offcanvas
+		if (settings.modal_id) {
+			const $modal = $(`#${settings.modal_id}`);
+
+			if (settings.modal_type === "modal") {
+				$modal.modal("show").css("z-index", 2000);
+			} else if (settings.modal_type === "offcanvas") {
+				$modal.offcanvas("toggle").css("z-index", 2000);
+			}
+		}
 	} catch (error) {
-	  // Error handling
-	  showContainerError(settings.display_id, settings.errorMessage);
-	  console.error("Error loading document:", error);
+		// Error handling
+		showContainerError(settings.display_id, settings.errorMessage);
+		console.error("Error loading document:", error);
 	}
-  };
+};
 
 // DOWNLOAD FILES HELPER
 
@@ -3069,69 +3499,69 @@ const loadFormContent = async (idToLoad, filePath, urlFunc = null, dataArray = n
  * });
  */
 async function loadFileComponent(idToLoad, filePHPPath, config = {}) {
-    // Default configuration
-    const defaultConfig = {
-        data: {},
-        baseUrl: base_url(),
-        csrf_cookie_name: csrf_cookie_name,
-        timeout: 10000,
-        skeletonLoader: null,
-        functionToLoad: null,
-        functionParams: [], // Supports passing multiple parameters
-        cache: {
-            enabled: false,
-            duration: 5 * 60 * 1000 // 5 minutes
-        },
-        errorHandling: {
-            showErrorMessage: true,
-            errorClass: 'alert alert-danger',
-            fallbackContent: 'Unable to load component'
-        }
-    };
+	// Default configuration
+	const defaultConfig = {
+		data: {},
+		baseUrl: base_url(),
+		csrf_cookie_name: csrf_cookie_name,
+		timeout: 10000,
+		skeletonLoader: null,
+		functionToLoad: null,
+		functionParams: [], // Supports passing multiple parameters
+		cache: {
+			enabled: false,
+			duration: 5 * 60 * 1000 // 5 minutes
+		},
+		errorHandling: {
+			showErrorMessage: true,
+			errorClass: 'alert alert-danger',
+			fallbackContent: 'Unable to load component'
+		}
+	};
 
-    // Merge default config with provided options
-    const mergedConfig = {
-        ...defaultConfig,
-        ...config,
-        cache: {
-            ...defaultConfig.cache,
-            ...(config.cache || {})
-        },
-        errorHandling: {
-            ...defaultConfig.errorHandling,
-            ...(config.errorHandling || {})
-        }
-    };
+	// Merge default config with provided options
+	const mergedConfig = {
+		...defaultConfig,
+		...config,
+		cache: {
+			...defaultConfig.cache,
+			...(config.cache || {})
+		},
+		errorHandling: {
+			...defaultConfig.errorHandling,
+			...(config.errorHandling || {})
+		}
+	};
 
-    // Get the target element
-    const $targetElement = $(`#${idToLoad}`);
+	// Get the target element
+	const $targetElement = $(`#${idToLoad}`);
 
-    // Helper function to call the specified function after loading
-    const callFunctionAfterLoading = ($element, response) => {
-        if (mergedConfig.functionToLoad) {
-            try {
-                // If it's a string (function name)
-                if (typeof mergedConfig.functionToLoad === 'string') {
-                    const func = window[mergedConfig.functionToLoad];
-                    if (typeof func === 'function') {
-                        // Spread the actual parameters, preserving the original array/object
-                        func(...(mergedConfig.functionParams || []));
-                    } else {
-                        console.warn(`Function ${mergedConfig.functionToLoad} not found`);
-                    }
-                } 
-                // If it's a function
-                else if (typeof mergedConfig.functionToLoad === 'function') {
-                    // Pass element, response, and original parameters
-                    mergedConfig.functionToLoad($element, response, ...(mergedConfig.functionParams || []));
-                }
-            } catch (error) {
-                console.error('Error calling function after loading:', error);
-            }
-        }
-    };
+	// Helper function to call the specified function after loading
+	const callFunctionAfterLoading = ($element, response) => {
+		if (mergedConfig.functionToLoad) {
+			try {
+				// If it's a string (function name)
+				if (typeof mergedConfig.functionToLoad === 'string') {
+					const func = window[mergedConfig.functionToLoad];
+					if (typeof func === 'function') {
+						// Spread the actual parameters, preserving the original array/object
+						func(...(mergedConfig.functionParams || []));
+					} else {
+						console.warn(`Function ${mergedConfig.functionToLoad} not found`);
+					}
+				}
+				// If it's a function
+				else if (typeof mergedConfig.functionToLoad === 'function') {
+					// Pass element, response, and original parameters
+					mergedConfig.functionToLoad($element, response, ...(mergedConfig.functionParams || []));
+				}
+			} catch (error) {
+				console.error('Error calling function after loading:', error);
+			}
+		}
+	};
 
-    try {
+	try {
 		// Clear previous content
 		$targetElement.empty();
 

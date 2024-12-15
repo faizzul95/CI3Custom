@@ -12,7 +12,7 @@ use App\core\Traits\PaginateQuery;
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
  * @link      -
- * @version   0.1.0.2
+ * @version   0.1.0.3
  */
 
 class MY_Model extends CI_Model
@@ -83,6 +83,8 @@ class MY_Model extends CI_Model
     protected $_overrideValidation = []; // to override the validation for update & insert
     protected $_ignoreValidation = false; // will ignore the validation
     protected $_validationError = []; // used to store the validation error message
+    public $_validationLang = 'english'; // used to set validation language for error message, default is english
+
 
     public $cacheEnable = false;
     public $cacheTimeout = 3600;
@@ -1486,6 +1488,21 @@ class MY_Model extends CI_Model
                     // Reset validation to clear previous rules and data
                     $this->form_validation->reset_validation();
 
+                    // Set language if _validationLang is set
+                    if (!empty($this->_validationLang) && !in_array(strtolower($this->_validationLang), ['english', 'en'])) {
+                        $langCode = strtolower($this->_validationLang);
+                        $langFile = APPPATH . "language/{$langCode}/form_validation_lang.php";
+
+                        log_message('debug', 'Attempting to load language file: ' . $langFile);
+
+                        if (file_exists($langFile)) {
+                            $this->lang->load('form_validation', $langCode);
+                            $this->form_validation->set_message($this->lang->language);
+                        } else {
+                            log_message('error', 'Language file not found: ' . $langFile);
+                        }
+                    }
+
                     // Set the data to be validated
                     $this->form_validation->set_data($data);
 
@@ -1494,16 +1511,11 @@ class MY_Model extends CI_Model
 
                     // Run validation and return errors if any
                     if (!$this->form_validation->run()) {
-                        // Collect validation error messages and format as an unordered list without <p> tags
-                        $errors = validation_errors();
-
-                        // Remove <p> tags from errors
-                        $err = strip_tags($errors); // Remove all HTML tags
-                        $errorsArray = explode("\n", trim($err));
+                        $errors = $this->form_validation->error_array(); // This returns an associative array of errors
 
                         // Build the unordered list
                         $errorsList = "<ul>";
-                        foreach ($errorsArray as $error) {
+                        foreach ($errors as $error) {
                             if (!empty($error)) {
                                 $errorsList .= "<li>" . htmlspecialchars(trim($error)) . "</li>";
                             }
