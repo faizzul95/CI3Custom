@@ -24,6 +24,7 @@
 
     <!-- CDN -->
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- <style>
         .swal2-customCss {

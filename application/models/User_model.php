@@ -12,6 +12,7 @@ class User_model extends MY_Model
         'name',
         'user_preferred_name',
         'email',
+        'user_contact_no',
         'user_gender',
         'user_dob',
         'username',
