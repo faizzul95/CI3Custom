@@ -14,7 +14,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 
     <!-- Custom JS (Fahmy Izwan) -->
-    <script src="{{ asset('public/custom/js/axios.min.js') }}"></script>
+    <script src="{{ asset('custom/js/axios.min.js') }}"></script>
+    <script src="{{ asset('custom/js/jquery.min.js') }}"></script>
     <script src="{{ asset('custom/js/js-cookie.js') }}"></script>
     <script src="{{ asset('custom/js/helper.js') }}"></script>
     <script src="{{ asset('custom/js/validationJS.js') }}"></script>

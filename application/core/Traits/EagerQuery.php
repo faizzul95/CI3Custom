@@ -16,9 +16,9 @@ trait EagerQuery
         }
 
         if (str_contains($relation, '.')) {
-            $this->_applyNestedRelation($relation, $callback, 'AND');
+            $this->_applyNestedRelation($relation, $callback, 'AND', 'EXISTS');
         } else {
-            $this->_applySingleRelation($relation, $callback, 'AND');
+            $this->_applySingleRelation($relation, $callback, 'AND', 'EXISTS');
         }
 
         return $this;
@@ -31,15 +31,45 @@ trait EagerQuery
         }
 
         if (str_contains($relation, '.')) {
-            $this->_applyNestedRelation($relation, $callback, 'OR');
+            $this->_applyNestedRelation($relation, $callback, 'OR', 'EXISTS');
         } else {
-            $this->_applySingleRelation($relation, $callback, 'OR');
+            $this->_applySingleRelation($relation, $callback, 'OR', 'EXISTS');
         }
 
         return $this;
     }
 
-    private function _applyNestedRelation($relation, \Closure $callback = null, $boolean = 'AND')
+    public function whereDoesntHave($relation, \Closure $callback = null)
+    {
+        if (empty($relation)) {
+            return $this;
+        }
+
+        if (str_contains($relation, '.')) {
+            $this->_applyNestedRelation($relation, $callback, 'AND', 'NOT EXISTS');
+        } else {
+            $this->_applySingleRelation($relation, $callback, 'AND', 'NOT EXISTS');
+        }
+
+        return $this;
+    }
+
+    public function orWhereDoesntHave($relation, \Closure $callback = null)
+    {
+        if (empty($relation)) {
+            return $this;
+        }
+
+        if (str_contains($relation, '.')) {
+            $this->_applyNestedRelation($relation, $callback, 'OR', 'NOT EXISTS');
+        } else {
+            $this->_applySingleRelation($relation, $callback, 'OR', 'NOT EXISTS');
+        }
+
+        return $this;
+    }
+
+    private function _applyNestedRelation($relation, \Closure $callback = null, $boolean = 'AND', $existsType = 'EXISTS')
     {
         // Split the relation into parts
         $parts = explode(".", $relation);
@@ -136,19 +166,18 @@ trait EagerQuery
             $callback($subquery);
         }
 
-        // Construct the EXISTS query
         $existsQuery = $subquery->select('1')->from($relationMainTable)->get_compiled_select();
 
         if (!empty($existsQuery)) {
             if ($boolean === 'AND') {
-                $this->_database->where("EXISTS ({$existsQuery})");
+                $this->_database->where("{$existsType} ({$existsQuery})");
             } else {
-                $this->_database->or_where("EXISTS ({$existsQuery})");
+                $this->_database->or_where("{$existsType} ({$existsQuery})");
             }
         }
     }
 
-    private function _applySingleRelation($relation, \Closure $callback = null, $boolean = 'AND')
+    private function _applySingleRelation($relation, \Closure $callback = null, $boolean = 'AND', $existsType = 'EXISTS')
     {
         if (!method_exists($this, $relation)) {
             throw new \Exception("Relation method {$relation} does not exist.");
@@ -201,14 +230,12 @@ trait EagerQuery
                 }
             }
 
-            // Construct the EXISTS query
             $existsQuery = $subquery->select('1')->from($relationTable)->get_compiled_select();
 
-            // Ensure we are querying the `users` table in the main query
             if ($boolean === 'AND') {
-                $this->_database->where("EXISTS ({$existsQuery})");
+                $this->_database->where("{$existsType} ({$existsQuery})");
             } else {
-                $this->_database->or_where("EXISTS ({$existsQuery})");
+                $this->_database->or_where("{$existsType} ({$existsQuery})");
             }
         }
     }
