@@ -1,10 +1,4 @@
-# ePMP
-
-Project Name : e-PMP
-
-Client : Dalilah (MPKL)
-
-Year Project : 2024
+# Codeignter 3 Custom
 
 Requirement System
 - PHP 8.0 or above
