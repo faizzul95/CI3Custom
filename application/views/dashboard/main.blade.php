@@ -3,13 +3,17 @@
 @section('content')
 
 @if($permission['dashboard-view'])
-<div id="container">
-    <h1>Welcome {{ currentUserFullName() }} to {{ $title }}!</h1>
-    <div id="body">
-        <a href="{{ url('logout') }}" class="btn btn-sm btn-danger"> Log Out </a>
-        {!! actionBtn('create', 'createUser', null, ['class' => 'btn-success btn-sm']) !!}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="mb-4">
+            <h5 class="card-title mb-3">
+                <i class="fas fa-dashboard text-info me-2"></i> Dashboard Section
+            </h5>
+            {!! actionBtn('create', 'createUser', null, ['class' => 'btn-success btn-sm', 'text' => 'Sample Button']) !!}
+        </div>
     </div>
 </div>
+
 @else
 {{ nodataAccess() }}
 @endif

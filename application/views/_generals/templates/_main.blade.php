@@ -12,6 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="{{ asset('custom/css/toastr.min.css') }}" rel="stylesheet">
 
     <!-- Custom JS (Fahmy Izwan) -->
     <script src="{{ asset('custom/js/axios.min.js') }}"></script>
@@ -21,6 +22,7 @@
     <script src="{{ asset('custom/js/validationJS.js') }}"></script>
     <script src="{{ asset('custom/js/block-ui.js') }}"></script>
     <script src="{{ asset('custom/js/extended-ui-blockui.js') }}"></script>
+    <script src="{{ asset('custom/js/toastr.min.js') }}"></script>
 
     <!-- CDN -->
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/moment.min.js"></script>
@@ -35,10 +37,12 @@
 
 <body>
 
-    @includeif('_generals.templates._header')
-    @includeif('_generals.templates._menu')
+    <div class="container py-5">
+        @includeif('_generals.templates._header')
+        @includeif('_generals.templates._menu')
 
-    @yield('content')
+        @yield('content')
+    </div>
 
     <!-- ADD GENERAL FUNCTION -->
     @includeif('_generals.php.common')
@@ -51,13 +55,7 @@
         });
 
         function clock() {
-            let today = new Date().toLocaleDateString('en-GB', {
-                month: '2-digit',
-                day: '2-digit',
-                year: 'numeric'
-            });
-
-            $("#currentTime").html(getClock('12', 'en', true) + ' | ' + today);
+            $("#currentTime").html(getClock('12', 'en', true) + ' | ' + date('d/m/Y'));
             setTimeout(clock, 1000);
         }
     </script>

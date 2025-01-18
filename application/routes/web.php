@@ -22,7 +22,6 @@
 //    luthier_info();
 // })->name('homepage');
 
-
 // GENERAL
 Route::set('default_controller', 'auth');
 
@@ -34,7 +33,7 @@ Route::get('/profile', 'userProfile@index', ['middleware' => ['Sanctum']]);
 Route::get('/dashboard', 'dashboard@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
 Route::get('/user', 'user@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
 
-Route::get('/csv-user-import', 'ImportExportController@index', ['middleware' => ['Sanctum']]);
+Route::get('/csv-user-import', 'ImportController@index', ['middleware' => ['Sanctum']]);
 
 Route::set('404_override', function () {
     show_404();

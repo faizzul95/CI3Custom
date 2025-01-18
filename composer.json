@@ -28,7 +28,8 @@
         "ramsey/uuid": "^4.7",
         "peppeocchi/php-cron-scheduler": "^4.0",
         "phpmailer/phpmailer": "^6.9",
-        "onlyphp/codeigniter3-model": "^1.0"
+        "onlyphp/codeigniter3-model": "^1.0",
+        "onlyphp/codeigniter3-csvimporter": "^1.0"
     },
     "scripts": {
         "post-install-cmd": [
