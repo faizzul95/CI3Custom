@@ -831,6 +831,90 @@ const getClock = (format = '24', lang = 'en', showSeconds = true) => {
 };
 
 /**
+ * Function: showClock
+ * Description: Displays and updates a clock in a specified HTML element every second.
+ * The clock shows the current day, time, and date.
+ *
+ * @param {string} id - The ID of the HTML element where the clock will be displayed
+ * @param {Object|null} customize - Optional customization object for clock display
+ * @param {string} [customize.timeFormat='24'] - Time format ('12' or '24')
+ * @param {string} [customize.lang='en'] - Language for day names ('en', 'my', or 'id')
+ * @param {boolean} [customize.showSeconds=true] - Whether to show seconds
+ * @param {boolean} [customize.showDate=true] - Whether to show date
+ * @param {string} [customize.dateFormat='d/m/Y'] - Date format string
+ * @param {string} [customize.separator=' | '] - Separator between time and date
+ * 
+ * @example
+ * // Basic usage with default settings
+ * showClock('clock-div');
+ * 
+ * // Custom settings
+ * showClock('clock-div', {
+ *   timeFormat: '12',
+ *   lang: 'en',
+ *   showSeconds: true,
+ *   dateFormat: 'Y-m-d',
+ *   separator: ' - '
+ * });
+ */
+const showClock = (id, customize = null) => {
+    // Validate input ID
+    const element = document.getElementById(id);
+    if (!element) {
+        console.error(`Element with ID '${id}' not found`);
+        return;
+    }
+
+    // Default configuration
+    const config = {
+        timeFormat: '24',
+        lang: 'en',
+        showSeconds: true,
+        showDate: true,
+        dateFormat: 'd/m/Y',
+        separator: ' | ',
+        ...customize // Spread operator to override defaults with custom settings
+    };
+
+    // Function to update the clock
+    const updateClock = () => {
+        try {
+            // Get the clock and date strings using existing functions
+            const clockStr = getClock(
+                config.timeFormat,
+                config.lang,
+                config.showSeconds
+            );
+            const dateStr = config.showDate ? config.separator + date(config.dateFormat) : '';
+
+            // Combine clock and date with separator
+            const displayStr = `${clockStr}${dateStr}`;
+
+            // Update the element
+            element.textContent = displayStr;
+        } catch (error) {
+            console.error(`Error updating clock: ${error.message}`);
+            element.textContent = 'Clock Error';
+        }
+    };
+
+    // Initial update
+    updateClock();
+
+    // Set up the interval to update every second
+    const timerId = setInterval(updateClock, 1000);
+
+    // Store the timer ID on the element for cleanup if needed
+    element.dataset.clockTimerId = timerId;
+
+    // Return a cleanup function
+    return () => {
+        clearInterval(timerId);
+        delete element.dataset.clockTimerId;
+    };
+};
+
+/**
  * Function: date
  * Description: Formats a date based on the provided format string.
  *

@@ -51,13 +51,13 @@
 
     <script>
         $(document).ready(function() {
-            clock();
+            showClock('currentTime', {
+                timeFormat: '12',
+                lang: 'en', // or my for malay
+                showSeconds: true,
+                showDate: true
+            });
         });
-
-        function clock() {
-            $("#currentTime").html(getClock('12', 'en', true) + ' | ' + date('d/m/Y'));
-            setTimeout(clock, 1000);
-        }
     </script>
 
 </body>
