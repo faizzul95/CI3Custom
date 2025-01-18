@@ -181,3 +181,92 @@ if (!function_exists('isUnauthorized')) {
         return in_array($code, $unauthorizedStatusCodes);
     }
 }
+
+/**
+ * Check if a URL responds with a valid HTTP status code within a specified timeout.
+ *
+ * This function sends a HEAD request to the given URL and checks if the response status code
+ * falls within the range of 200 to 399, indicating a successful response. If the URL does not
+ * respond or responds with an error status code, this function returns false.
+ *
+ * @param string $url The URL to check for a response.
+ * @param int $timeout The maximum time, in seconds, to wait for the response (default is 10 seconds).
+ *
+ * @return bool Returns true if the URL responds with a valid status code, false otherwise.
+ */
+if (!function_exists('urlRequestChecker')) {
+    function urlRequestChecker($url, $timeout = 10)
+    {
+        try {
+            $client = new \GuzzleHttp\Client();
+            $response = $client->head($url, ['http_errors' => false, 'timeout' => $timeout]);
+
+            return $response->getStatusCode() >= 200 && $response->getStatusCode() < 400;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+}
+
+/**
+ * Send a cURL request to the specified URL with optional form data and options.
+ *
+ * @param string $url               The URL to send the request to.
+ * @param array  $formData          (Optional) Data to send in the request body.
+ * @param string $method            (Optional) The HTTP method for the request (GET or POST).
+ * @param array  $customCurlOption  (Optional) An array of cURL options to customize the request.
+ *
+ * @return array An associative array with 'code' (HTTP status code) and 'message' (response content).
+ */
+if (!function_exists('makeCurlRequest')) {
+    function makeCurlRequest($url, $formData = [], $method = 'GET', $customCurlOption = [])
+    {
+        // Initialize cURL session
+        $ch = curl_init();
+
+        // Build the URL with query parameters if using GET
+        if ($method === 'GET' && !empty($formData)) {
+            $url .= '?' . http_build_query($formData);
+        }
+
+        if (!empty($optionCurl)) {
+            $defaultCurlOptions = $customCurlOption;
+        } else {
+            $defaultCurlOptions = [
+                CURLOPT_RETURNTRANSFER => TRUE,
+                CURLOPT_HEADER => FALSE,
+                CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2, // Use only TLSv1.2
+                CURLOPT_SSL_VERIFYPEER => FALSE,
+                CURLOPT_SSL_VERIFYHOST => FALSE,
+                CURLOPT_FAILONERROR => TRUE,
+                CURLINFO_HEADER_OUT => TRUE,
+            ];
+        }
+
+        // set curl request url
+        $defaultCurlOptions[CURLOPT_URL] = $url;
+
+        if ($method === 'POST') {
+            // If using POST method, set the data and request method
+            $defaultCurlOptions[CURLOPT_POST] = TRUE;
+            $defaultCurlOptions[CURLOPT_POSTFIELDS] = http_build_query($formData);
+        }
+
+        curl_setopt_array($ch, $defaultCurlOptions);
+
+        // Execute cURL session
+        $response = ['code' => 200, 'message' => curl_exec($ch)];
+
+        // Check for cURL errors
+        if (curl_errno($ch)) {
+            // Handle cURL error
+            $error = curl_error($ch);
+            $response = ['code' => 422, 'message' => 'cURL Error: ' . $error, 'error' => $error];
+        }
+
+        // Close cURL session
+        curl_close($ch);
+
+        return $response;
+    }
+}

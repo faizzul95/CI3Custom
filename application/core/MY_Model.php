@@ -11,8 +11,7 @@ use App\core\Traits\PaginateQuery;
  * @category  Model
  * @Description  An extended model class for CodeIgniter 3 with advanced querying capabilities, relationship handling, and security features.
  * @author    Mohd Fahmy Izwan Zulkhafri <faizzul14@gmail.com>
- * @link      -
- * @version   0.1.0.3
+ * @link      https://github.com/faizzul95/MY_Model
  */
 
 class MY_Model extends CI_Model
@@ -84,11 +83,6 @@ class MY_Model extends CI_Model
     protected $_ignoreValidation = false; // will ignore the validation
     protected $_validationError = []; // used to store the validation error message
     public $_validationLang = 'english'; // used to set validation language for error message, default is english
-
-
-    public $cacheEnable = false;
-    public $cacheTimeout = 3600;
-    protected $cacheDir = 'query';
 
     public function __construct()
     {
@@ -685,17 +679,8 @@ class MY_Model extends CI_Model
     public function get()
     {
         try {
-
-            $cacheKey = $this->getCacheKey();
-            $cachedResult = $this->getCache($cacheKey);
-
-            if ($cachedResult !== false) {
-                $result = $cachedResult;
-            } else {
-                $this->_withTrashQueryFilter();
-                $result = $this->_database->get($this->table)->result_array();
-                $this->setCache($cacheKey, $result);
-            }
+            $this->_withTrashQueryFilter();
+            $result = $this->_database->get($this->table)->result_array();
 
             if (!empty($result))
                 $result = $this->loadRelations($result);
@@ -717,16 +702,9 @@ class MY_Model extends CI_Model
     public function fetch()
     {
         try {
-            $cacheKey = $this->getCacheKey();
-            $cachedResult = $this->getCache($cacheKey);
 
-            if ($cachedResult !== false) {
-                $result = $cachedResult;
-            } else {
-                $this->_withTrashQueryFilter();
-                $result = $this->_database->get($this->table)->row_array();
-                $this->setCache($cacheKey, $result);
-            }
+            $this->_withTrashQueryFilter();
+            $result = $this->_database->get($this->table)->row_array();
 
             if (!empty($result))
                 $result = $this->loadRelations([$result]);
@@ -796,7 +774,7 @@ class MY_Model extends CI_Model
      *
      * @return $this
      */
-    public function ignoreValidation()
+    public function skipValidation()
     {
         $this->_ignoreValidation = true;
         return $this;
@@ -960,8 +938,6 @@ class MY_Model extends CI_Model
 
                 $this->resetQuery();
 
-                $this->deleteCache();
-
                 return [
                     'code' => 201,
                     $this->primaryKey => $insertId,
@@ -1036,8 +1012,6 @@ class MY_Model extends CI_Model
 
             $this->_database->trans_commit();
 
-            $this->deleteCache();
-
             return [
                 'code' => 200,
                 'id' => $lastInsertId,
@@ -1096,8 +1070,6 @@ class MY_Model extends CI_Model
                 }
 
                 $this->resetQuery();
-
-                $this->deleteCache();
 
                 return [
                     'code' => 200,
@@ -1212,8 +1184,6 @@ class MY_Model extends CI_Model
             $this->_database->trans_commit();
             $this->resetQuery();
 
-            $this->deleteCache();
-
             return [
                 'code' => 200,
                 'id' => array_column($batchData, $keyColumn),
@@ -1269,8 +1239,6 @@ class MY_Model extends CI_Model
                 throw new Exception('Failed to delete record');
             }
 
-            $this->deleteCache();
-
             return [
                 'code' => 200,
                 $this->primaryKey => $id,
@@ -1319,8 +1287,6 @@ class MY_Model extends CI_Model
                 throw new Exception('Failed to delete record');
             }
 
-            $this->deleteCache();
-
             return [
                 'code' => 200,
                 'id' => array_column($data, $this->primaryKey),
@@ -1362,8 +1328,6 @@ class MY_Model extends CI_Model
                 throw new Exception('Failed to force delete record');
             }
 
-            $this->deleteCache();
-
             return [
                 'code' => 200,
                 $this->primaryKey => $id,
@@ -1404,8 +1368,6 @@ class MY_Model extends CI_Model
             if (!$success) {
                 throw new Exception('Failed to restore record with id : ' . $id);
             }
-
-            $this->deleteCache();
 
             return [
                 'code' => 200,
@@ -1537,142 +1499,6 @@ class MY_Model extends CI_Model
         }
 
         return true;
-    }
-
-    # CACHING HELPER
-
-    public function cacheTimeout($timeout = 3600)
-    {
-        $this->cacheEnable = true;
-        $this->cacheTimeout = $timeout;
-        return $this;
-    }
-
-    public function cacheOff()
-    {
-        $this->cacheEnable = false;
-        return $this;
-    }
-
-    private function getCacheKey()
-    {
-        if (!$this->cacheEnable) return null;
-
-        // Get the compiled SQL query
-        $_temp = clone $this->_database;
-        $query = $_temp->get_compiled_select($this->table, false);
-        unset($_temp);
-
-        // Create a standardized array of key components
-        $keyComponents = [
-            'query' => $this->normalizeQuery($query),
-            'connection' => $this->connection,
-            'table' => $this->table,
-            'primary_key' => $this->primaryKey,
-            'eager_load' => $this->eagerLoad,
-            'return_as' => $this->returnType
-        ];
-
-        // Sort the array by keys to ensure consistent order
-        ksort($keyComponents);
-
-        // Create the cache directory if it doesn't exist
-        $cachePath = APPPATH . 'cache' . DIRECTORY_SEPARATOR . $this->cacheDir . DIRECTORY_SEPARATOR . strtolower(get_class($this)) . DIRECTORY_SEPARATOR;
-        if (!file_exists($cachePath) && $this->cacheEnable) {
-            mkdir($cachePath, 0755, true);
-        }
-
-        // Generate a consistent hash for the key components
-        return strtolower($this->table) . '_' . md5(json_encode($keyComponents, JSON_UNESCAPED_SLASHES));
-    }
-
-    private function getCache($key)
-    {
-        if (!$this->cacheEnable) return false;
-
-        $file = APPPATH . 'cache' . DIRECTORY_SEPARATOR . $this->cacheDir . DIRECTORY_SEPARATOR . strtolower(get_class($this)) . DIRECTORY_SEPARATOR . $key;
-        if (file_exists($file) && (time() - filemtime($file) < $this->cacheTimeout)) {
-            return unserialize(gzuncompress(file_get_contents($file)));
-        }
-
-        return false;
-    }
-
-    private function setCache($key, $data = NULL)
-    {
-        if (!$this->cacheEnable) return;
-
-        if (!empty($data)) {
-            $file = APPPATH . 'cache' . DIRECTORY_SEPARATOR . $this->cacheDir . DIRECTORY_SEPARATOR . strtolower(get_class($this)) . DIRECTORY_SEPARATOR . $key;
-            file_put_contents($file, gzcompress(serialize($data)));
-        }
-    }
-
-    private function deleteCache($path = NULL)
-    {
-        if (!$this->cacheEnable) {
-            return;
-        }
-
-        // Set default path if none provided
-        if (is_null($path)) {
-            $path = APPPATH . 'cache' . DIRECTORY_SEPARATOR . $this->cacheDir . DIRECTORY_SEPARATOR;
-        }
-
-        // Return if path doesn't exist
-        if (!file_exists($path)) {
-            return;
-        }
-
-        // If path is a file, delete it directly
-        if (is_file($path)) {
-            unlink($path);
-            return;
-        }
-
-        // Handle directory
-        if (is_dir($path)) {
-            $files = array_diff(scandir($path), array('.', '..'));
-
-            foreach ($files as $file) {
-                $fullPath = $path . DIRECTORY_SEPARATOR . $file;
-                $this->deleteCache($fullPath);
-            }
-
-            rmdir($path);
-        }
-    }
-
-    /**
-     * Normalizes a SQL query for consistent cache key generation
-     * 
-     * @param string $query
-     * @return string
-     */
-    private function normalizeQuery($query)
-    {
-        // Remove extra whitespace
-        $query = preg_replace('/\s+/', ' ', trim($query));
-
-        // Sort WHERE conditions alphabetically
-        if (preg_match('/WHERE\s+(.*?)(?:ORDER|GROUP|LIMIT|$)/i', $query, $matches)) {
-            $whereClause = $matches[1];
-            $conditions = explode(' AND ', $whereClause);
-            sort($conditions);
-            $newWhereClause = implode(' AND ', $conditions);
-            $query = str_replace($whereClause, $newWhereClause, $query);
-        }
-
-        // Sort ORDER BY clauses
-        if (preg_match('/ORDER BY\s+(.*?)(?:LIMIT|$)/i', $query, $matches)) {
-            $orderClause = $matches[1];
-            $orders = explode(',', $orderClause);
-            sort($orders);
-            $newOrderClause = implode(',', $orders);
-            $query = str_replace($orderClause, $newOrderClause, $query);
-        }
-
-        return $query;
     }
 
     # TRANSACTION HELPER
