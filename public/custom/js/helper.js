@@ -2125,225 +2125,325 @@ const isUnauthorized = (res) => {
 
 // CUSTOM FUNCTION FOR MY_MODEL
 
+/**
+ * Performs an HTTP request with advanced configuration options and lifecycle callbacks.
+ * 
+ * @param {string} method - The HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param {string} url - The endpoint URL
+ * @param {Object} config - Configuration options
+ * @param {string|null} [config.actionType] - Action type for notification purposes
+ * @param {string|null} [config.formId] - ID of the form to submit
+ * @param {boolean} [config.closedModal=false] - Whether to close modal after request
+ * @param {string|null} [config.loadingBtnId] - ID of button to show loading state
+ * @param {boolean} [config.showAlertMessage=false] - Whether to show alert messages
+ * @param {boolean} [config.responseMessage=false] - Whether to use response message in alerts
+ * @param {boolean} [config.allowValidationMessage=false] - Whether to show validation messages
+ * @param {boolean} [config.uploadForm=false] - Whether this is a file upload
+ * @param {string|null} [config.uploadProgressId] - ID of upload progress container
+ * @param {Function|null} [config.reloadFunction] - Function to call after success
+ * @param {Array} [config.reloadParams=[]] - Parameters for reload function
+ * @param {string|null} [config.permissions] - Permission header value
+ * @param {Object|null} [config.data] - Data to send with request
+ * @param {Function} [config.onRequest] - Callback before request is sent
+ * @param {Function} [config.onSuccess] - Callback after successful request
+ * @param {Function} [config.onError] - Callback after failed request
+ * @throws {Error} If callbacks are provided but are not functions
+ * @returns {Promise<Object>} The response object
+ * 
+ * @example
+ * // Basic GET request
+ * const response = await actionApi('GET', '/api/users');
+ * 
+ * @example
+ * // POST request with data
+ * const createUser = await actionApi('POST', '/api/users', {
+ *   data: {
+ *     name: 'John Doe',
+ *     email: 'john@example.com'
+ *   },
+ *   showAlertMessage: true,
+ *   responseMessage: true
+ * });
+ * 
+ * @example
+ * // Form submission with loading button
+ * actionApi('POST', '/api/contact', {
+ *   formId: 'contact-form',
+ *   loadingBtnId: 'submit-btn',
+ *   showAlertMessage: true,
+ *   closedModal: true,
+ *   onSuccess: (response) => {
+ *     console.log('Form submitted:', response);
+ *   },
+ *   onError: (error) => {
+ *     console.error('Form submission failed:', error);
+ *   }
+ * });
+ * 
+ * @example
+ * // File upload with progress
+ * actionApi('POST', '/api/upload', {
+ *   uploadForm: true,
+ *   formId: 'upload-form',
+ *   uploadProgressId: 'progress-container',
+ *   loadingBtnId: 'upload-btn',
+ *   showAlertMessage: true,
+ *   onRequest: (config) => {
+ *     // Modify headers or other config
+ *     config.headers['X-Custom-Header'] = 'value';
+ *   },
+ *   onSuccess: (response) => {
+ *     // Handle successful upload
+ *     updateGallery(response.data.fileUrl);
+ *   }
+ * });
+ * 
+ * @example
+ * // Request with reload function
+ * actionApi('DELETE', '/api/items/123', {
+ *   showAlertMessage: true,
+ *   reloadFunction: loadItemsList,
+ *   reloadParams: ['current-page'],
+ *   permissions: 'delete-items',
+ *   onSuccess: () => {
+ *     updateItemCount();
+ *   }
+ * });
+ * 
+ * @example
+ * // Handling validation errors
+ * actionApi('PUT', '/api/profile', {
+ *   formId: 'profile-form',
+ *   showAlertMessage: true,
+ *   allowValidationMessage: true,
+ *   responseMessage: true,
+ *   onError: (error) => {
+ *     if (error?.data?.code === 422) {
+ *       highlightFormErrors(error.data.errors);
+ *     }
+ *   }
+ * });
+ */
 const actionApi = async (method = 'GET', url, config = {}) => {
-	const translations = {
-		en: {
-			loading: "Submitting...",
-			estimatedTime: "Estimated time remaining",
-			hour: "hour",
-			minute: "minute",
-			second: "second(s)",
-			submit: "Submit",
-			uploadProgress: "{uploadedSize} of {totalSize} | {estimatedTime}: {remainingTimeText}",
-		},
-		my: {
-			loading: "Menghantar...",
-			estimatedTime: "Anggaran masa yang tinggal",
-			hour: "jam",
-			minute: "minit",
-			second: "saat",
-			submit: "Hantar",
-			uploadProgress: "{uploadedSize} daripada {totalSize} | {estimatedTime}: {remainingTimeText}",
-		}
-	};
+    // Cache commonly used values
+    const csrfToken = Cookies.get(csrf_cookie_name);
+    const requestMethod = method.toLowerCase();
+    const defaultConfig = {
+        actionType: null,
+        formId: null,
+        closedModal: false,
+        loadingBtnId: null,
+        showAlertMessage: false,
+        responseMessage: false,
+        allowValidationMessage: false,
+        uploadForm: false,
+        uploadProgressId: null,
+        reloadFunction: null,
+        reloadParams: [],
+        permissions: null,
+        data: null,
+        onRequest: null,
+        onSuccess: null,
+        onError: null,
+    };
 
-	const t = translations[language.toLowerCase()] || translations.en;
+    const mergedConfig = { ...defaultConfig, ...config };
 
-	// Default configuration
-	const defaultConfig = {
-		actionType: null,
-		formId: null,
-		closedModal: false,
-		loadingBtnId: null,
-		showAlertMessage: false,
-		responseMessage: false,
-		allowValidationMessage: false,
-		uploadForm: false,
-		uploadProgressId: null,
-		reloadFunction: null,
-		reloadParams: [],
-		permissions: null,
-		data: null
-	};
+	// Validate callback functions
+    const validateCallbacks = () => {
+        const callbacks = {
+            onRequest: mergedConfig.onRequest,
+            onSuccess: mergedConfig.onSuccess,
+            onError: mergedConfig.onError
+        };
 
-	const mergedConfig = { ...defaultConfig, ...config };
-	let dataToSend = mergedConfig.data;
-	let formData = null;
+        for (const [name, callback] of Object.entries(callbacks)) {
+            if (callback !== null && typeof callback !== 'function') {
+				alert(`${name} must be a function or null, received ${typeof callback}`);
+                throw new Error(`${name} must be a function or null, received ${typeof callback}`);
+            }
+        }
+    };
 
-	if (mergedConfig.formId) {
-		const form = $('#' + mergedConfig.formId);
-		formData = new FormData(form[0]);
-		formData.append(csrf_token_name, Cookies.get(csrf_cookie_name));
-	}
+	// Validate callbacks before proceeding
+	validateCallbacks();
 
-	const axiosConfig = {
-		method: method.toLowerCase(),
-		url: urls(url),
-		headers: {
-			"Authorization": `Bearer ${Cookies.get(csrf_cookie_name)}`,
-			'X-Requested-With': 'XMLHttpRequest',
-			'X-CSRF-TOKEN': Cookies.get(csrf_cookie_name),
-			'X-Permission': mergedConfig.permissions
-		}
-	};
+    const translations = {
+        en: {
+            loading: "Submitting...",
+            estimatedTime: "Estimated time remaining",
+            hour: "hour",
+            minute: "minute",
+            second: "second(s)",
+            submit: "Submit",
+            uploadProgress: "{uploadedSize} of {totalSize} | {estimatedTime}: {remainingTimeText}",
+        },
+        my: {
+            loading: mergedConfig.actionType == 'upload' ? "Memuat naik..." :  "Menghantar...",
+            estimatedTime: "Anggaran masa yang tinggal",
+            hour: "jam",
+            minute: "minit",
+            second: "saat",
+            submit: "Hantar",
+            uploadProgress: "{uploadedSize} daripada {totalSize} | {estimatedTime}: {remainingTimeText}",
+        }
+    };
 
-	if (mergedConfig.loadingBtnId) {
-		const $btn = $('#' + mergedConfig.loadingBtnId);
-		$btn.data('original-text', $btn.html());
-		$btn.html(`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${t.loading}`);
-		$btn.attr('disabled', true);
-	}
+    const t = translations[language.toLowerCase()] || translations.en;
 
-	if (mergedConfig.uploadForm) {
-		axiosConfig.headers['content-type'] = 'multipart/form-data';
+    // Helper functions
+    const handleLoadingButton = (isLoading) => {
+        if (!mergedConfig.loadingBtnId) return;
+        
+        const $btn = $('#' + mergedConfig.loadingBtnId);
+        if (isLoading) {
+            $btn.data('original-text', $btn.html());
+            $btn.html(`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${t.loading}`);
+        } else {
+            $btn.html($btn.data('original-text') || t.submit);
+        }
+        $btn.attr('disabled', isLoading);
+    };
 
-		if (mergedConfig.uploadProgressId) {
-			const timeStarted = new Date().getTime();
-			const $progressContainer = $('#' + mergedConfig.uploadProgressId);
+    const createUploadProgressHandler = (timeStarted, $progressContainer) => (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        const uploadedSize = sizeToText(progressEvent.loaded);
+        const totalSize = sizeToText(progressEvent.total);
+        
+        const progress = progressEvent.loaded / progressEvent.total;
+        const timeSpent = new Date().getTime() - timeStarted;
+        const secondsRemaining = Math.round(((timeSpent / progress) - timeSpent) / 1000);
 
-			axiosConfig.onUploadProgress = (progressEvent) => {
-				const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-				const uploadedSize = sizeToText(progressEvent.loaded);
-				const totalSize = sizeToText(progressEvent.total);
+        let remainingTimeText = '';
+        if (secondsRemaining >= 3600) {
+            remainingTimeText = `${Math.floor(secondsRemaining / 3600)} ${t.hour} ${Math.floor((secondsRemaining % 3600) / 60)} ${t.minute}`;
+        } else if (secondsRemaining >= 60) {
+            remainingTimeText = `${Math.floor(secondsRemaining / 60)} ${t.minute} ${secondsRemaining % 60} ${t.second}`;
+        } else {
+            remainingTimeText = `${secondsRemaining} ${t.second}`;
+        }
 
-				const progress = progressEvent.loaded / progressEvent.total;
-				const timeSpent = new Date().getTime() - timeStarted;
-				const secondsRemaining = Math.round(((timeSpent / progress) - timeSpent) / 1000);
+        const progressBarClass = percentCompleted <= 40 ? 'bg-danger' : percentCompleted <= 60 ? 'bg-warning' : percentCompleted <= 99 ? 'bg-info' : 'bg-success';
 
-				let remainingTimeText = '';
-				if (secondsRemaining >= 3600) {
-					remainingTimeText = `${Math.floor(secondsRemaining / 3600)} ${t.hour} ${Math.floor((secondsRemaining % 3600) / 60)} ${t.minute}`;
-				} else if (secondsRemaining >= 60) {
-					remainingTimeText = `${Math.floor(secondsRemaining / 60)} ${t.minute} ${secondsRemaining % 60} ${t.second}`;
-				} else {
-					remainingTimeText = `${secondsRemaining} ${t.second}`;
-				}
-
-				let progressBarClass = 'bg-danger';
-				if (percentCompleted > 40 && percentCompleted <= 60) {
-					progressBarClass = 'bg-warning';
-				} else if (percentCompleted > 60 && percentCompleted <= 99) {
-					progressBarClass = 'bg-info';
-				} else if (percentCompleted === 100) {
-					progressBarClass = 'bg-success';
-				}
-
-				$progressContainer.html(`
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="progress">
-                                <div class="progress-bar ${progressBarClass} progress-bar-striped progress-bar-animated" 
-                                    role="progressbar" 
-                                    style="width: ${percentCompleted}%" 
-                                    aria-valuenow="${percentCompleted}" 
-                                    aria-valuemin="0" 
-                                    aria-valuemax="100">
-                                    ${percentCompleted}%
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 mt-2 text-center">
-                            <small>
-                                ${t.uploadProgress
-						.replace('{uploadedSize}', uploadedSize)
-						.replace('{totalSize}', totalSize)
-						.replace('{estimatedTime}', t.estimatedTime)
-						.replace('{remainingTimeText}', remainingTimeText)}
-                            </small>
+        $progressContainer.html(`
+            <div class="row">
+                <div class="col-12">
+                    <div class="progress">
+                        <div class="progress-bar ${progressBarClass} progress-bar-striped progress-bar-animated" 
+                            role="progressbar" 
+                            style="width: ${percentCompleted}%" 
+                            aria-valuenow="${percentCompleted}" 
+                            aria-valuemin="0" 
+                            aria-valuemax="100">
+                            ${percentCompleted}%
                         </div>
                     </div>
-                `);
+                </div>
+                <div class="col-12 mt-2 text-center">
+                    <small>
+                        ${t.uploadProgress
+                            .replace('{uploadedSize}', uploadedSize)
+                            .replace('{totalSize}', totalSize)
+                            .replace('{estimatedTime}', t.estimatedTime)
+                            .replace('{remainingTimeText}', remainingTimeText)}
+                    </small>
+                </div>
+            </div>
+        `);
 
-				if (percentCompleted === 100) {
-					setTimeout(() => {
-						$progressContainer.empty();
-					}, 1500);
-				}
-			};
-		}
-	} else {
-		axiosConfig.headers['content-type'] = 'application/x-www-form-urlencoded';
-	}
+        if (percentCompleted === 100) {
+            setTimeout(() => $progressContainer.empty(), 1500);
+        }
+    };
 
-	if (['post', 'put'].includes(method.toLowerCase())) {
-		if (mergedConfig.formId) {
-			axiosConfig.data = formData || dataToSend;
-		} else {
-			dataToSend[csrf_token_name] = Cookies.get(csrf_cookie_name);
-			axiosConfig.data = new URLSearchParams(dataToSend);
-		}
-	}
+    const handleCallback = async (callback, data) => {
+        if (typeof callback === 'function') {
+            try {
+                await callback(data);
+            } catch (error) {
+                console.error(`Error in ${callback.name} callback:`, error);
+            }
+        }
+    };
 
-	try {
-		return axios(axiosConfig).then(result => {
+    // Build request configuration
+    const axiosConfig = {
+        method: requestMethod,
+        url: urls(url),
+        headers: {
+            "Authorization": `Bearer ${csrfToken}`,
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': csrfToken,
+            'X-Permission': mergedConfig.permissions,
+            'content-type': mergedConfig.uploadForm ? 'multipart/form-data' : 'application/x-www-form-urlencoded'
+        }
+    };
 
-			if (mergedConfig.loadingBtnId) {
-				const $btn = $('#' + mergedConfig.loadingBtnId);
-				$btn.html($btn.data('original-text') || t.submit);
-				$btn.attr('disabled', false);
-			}
+    // Handle form data
+    if (mergedConfig.formId) {
+        const form = $('#' + mergedConfig.formId);
+        const formData = new FormData(form[0]);
+        formData.append(csrf_token_name, csrfToken);
+        axiosConfig.data = formData;
+    } else if (['post', 'put'].includes(requestMethod)) {
+        const dataToSend = { ...mergedConfig.data, [csrf_token_name]: csrfToken };
+        axiosConfig.data = new URLSearchParams(dataToSend);
+    }
 
-			if (mergedConfig.closedModal) {
-				closeLatestModal(200);
-			}
+    // Handle file upload progress
+    if (mergedConfig.uploadForm && mergedConfig.uploadProgressId) {
+        const timeStarted = new Date().getTime();
+        const $progressContainer = $('#' + mergedConfig.uploadProgressId);
+        axiosConfig.onUploadProgress = createUploadProgressHandler(timeStarted, $progressContainer);
+    }
 
-			if (mergedConfig.reloadFunction) {
-				mergedConfig.reloadFunction(...mergedConfig.reloadParams);
-			}
+    // Execute request
+    try {
+        await handleCallback(mergedConfig.onRequest, axiosConfig);
+        handleLoadingButton(true);
 
-			if (mergedConfig.showAlertMessage) {
-				const notifyCode = result.data?.code || result.status;
-				const notifyAction = hasData(mergedConfig, 'actionType', true, result.data?.action || 'view');
-				const customMessage = mergedConfig.responseMessage ? result.data?.message : null;
+        const result = await axios(axiosConfig);
 
-				notify(notifyAction, notifyCode, customMessage || '');
-			}
+        handleLoadingButton(false);
 
-			return result;
-		})
-			.catch(error => {
-				log('ERROR ActionApi 1');
+        if (mergedConfig.closedModal) {
+            closeLatestModal(200);
+        }
 
-				if (mergedConfig.loadingBtnId) {
-					const $btn = $('#' + mergedConfig.loadingBtnId);
-					$btn.html($btn.data('original-text') || t.submit);
-					$btn.attr('disabled', false);
-				}
+        if (mergedConfig.reloadFunction) {
+            mergedConfig.reloadFunction(...mergedConfig.reloadParams);
+        }
 
-				if (mergedConfig.showAlertMessage) {
-					const errorCode = error.response?.data?.code || 400;
-					const errorAction = hasData(mergedConfig, 'actionType', true, error.response?.data?.action || 'view');
-					let errorMessage = mergedConfig.responseMessage ? error.response?.data?.message : null;
+        if (mergedConfig.showAlertMessage) {
+            const notifyCode = result.data?.code || result.status;
+            const notifyAction = hasData(mergedConfig, 'actionType', true, result.data?.action || 'view');
+            const customMessage = mergedConfig.responseMessage ? result.data?.message : null;
+            notify(notifyAction, notifyCode, customMessage || '');
+        }
 
-					if (mergedConfig.allowValidationMessage && errorCode === 422) {
-						errorMessage = error.response?.data?.message || errorMessage;
-					}
+        await handleCallback(mergedConfig.onSuccess, result);
+        return result;
+    } catch (error) {
+        log('ERROR ActionApi');
+        handleLoadingButton(false);
 
-					notify(errorAction, errorCode, errorMessage || '');
-				}
+        const response = error.response;
 
-				return error.response;
-			});
-	} catch (e) {
-		log('ERROR ActionApi 2');
-		const res = e.response;
+        if (mergedConfig.showAlertMessage) {
+            const errorCode = response?.data?.code || 400;
+            const errorAction = hasData(mergedConfig, 'actionType', true, response?.data?.action || 'view');
+            let errorMessage = mergedConfig.responseMessage ? response?.data?.message : null;
 
-		if (mergedConfig.loadingBtnId) {
-			const $btn = $('#' + mergedConfig.loadingBtnId);
-			$btn.html($btn.data('original-text') || t.submit);
-			$btn.attr('disabled', false);
-		}
+            if (mergedConfig.allowValidationMessage && errorCode === 422) {
+                errorMessage = response?.data?.message || errorMessage;
+            }
 
-		if (mergedConfig.showAlertMessage) {
-			const errorCode = res?.data?.code || 400;
-			const errorAction = hasData(mergedConfig, 'actionType', true, res?.data?.action || 'view');
-			const errorMessage = mergedConfig.responseMessage ? res?.data?.message : null;
+            notify(errorAction, errorCode, errorMessage || '');
+        }
 
-			notify(errorAction, errorCode, errorMessage || '');
-		}
-
-		return res;
-	}
+        await handleCallback(mergedConfig.onError, response);
+        return response;
+    }
 };
 
 const notify = (action = 'view', code = 400, custom_message_text = null) => {
@@ -2421,7 +2521,7 @@ const notify = (action = 'view', code = 400, custom_message_text = null) => {
 	const operation = hasData(messages[lang], strtolower(action)) ? strtolower(action) : null;
 
 	// Determine code
-	const resCode = typeof code === 'number' ? code : code.status;
+	const resCode = Number.isFinite(Number(code)) ? Number(code) : code.status;
 
 	// Prepare notification details
 	let messageText = '';
@@ -2450,6 +2550,7 @@ const notify = (action = 'view', code = 400, custom_message_text = null) => {
 
 	// Check if toastr is defined
 	if (typeof toastr !== 'undefined') {
+		
 		toastr.options = {
 			"debug": false,
 			"closeButton": !isMobileJs(),

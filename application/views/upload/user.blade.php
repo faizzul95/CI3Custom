@@ -77,6 +77,7 @@
 
 <script>
     $(document).ready(function() {
+
         // Form validation
         const form = document.getElementById('uploadForm');
         form.addEventListener('submit', function(event) {
@@ -105,10 +106,6 @@
 
         async function uploadFile() {
 
-            // Show progress section
-            $('#progressWrapper').removeClass('d-none');
-            $('#uploadForm').addClass('d-none');
-
             const res = await actionApi('post', 'upload/import-user', {
                 formId: 'uploadForm',
                 loadingBtnId: 'uploadButton',
@@ -117,21 +114,34 @@
                 allowValidationMessage: true,
                 uploadForm: true,
                 uploadProgressId: 'progressBar',
-                actionType: 'upload'
+                actionType: 'upload',
+                onRequest: (config) => {
+                    // Show progress section
+                    $('#progressWrapper').removeClass('d-none');
+                    $('#uploadForm').addClass('d-none');
+
+                    console.log('Request is about to be sent:', config);
+                },
+                onSuccess: (response) => {
+                    console.log('Request succeeded:', response);
+                    resetUpload();
+                },
+                onError: (error) => {
+                    resetUpload();
+                    console.log('Request failed:', error);
+                }
             });
+        }
 
-            if (isSuccess(res)) {
-                toastr.success(response.message);
-                setTimeout(function() {
-                    $('#progressWrapper').addClass('d-none');
-                    $('#progressBar').css('width', '0%').text('0%');
-                    $('#progressStatus').text('');
-                    $('#uploadForm').removeClass('d-none');
-                    $('#file').val('');
-                    form.classList.remove('was-validated');
-                }, 1500);
-            }
-
+        function resetUpload() {
+            setTimeout(function() {
+                $('#progressWrapper').addClass('d-none');
+                $('#progressBar').css('width', '0%').text('0%');
+                $('#progressStatus').text('');
+                $('#uploadForm').removeClass('d-none');
+                $('#file').val('');
+                form.classList.remove('was-validated');
+            }, 1000);
         }
     });
 
