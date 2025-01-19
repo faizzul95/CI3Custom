@@ -19,8 +19,12 @@ class Migration_create_system_queue_job extends CI_Migration
 			'type' => ['type' => 'VARCHAR', 'constraint' => 250, 'null' => TRUE, 'comment' => ''],
 			'payload' => ['type' => 'LONGTEXT', 'null' => TRUE, 'comment' => ''],
 			'attempt' => ['type' => 'INT', 'default' => '0', 'null' => TRUE, 'comment' => ''],
-			'status' => ['type' => 'TINYINT', 'default' => '1', 'null' => TRUE, 'comment' => ''],
+			'status' => ['type' => 'TINYINT', 'default' => '1', 'null' => TRUE, 'comment' => '1 - Pending, 2 - Processing, 3 - Completed, 4 - Failed'],
+			'user_id' => ['type' => 'BIGINT', 'unsigned' => TRUE, 'null' => TRUE, 'comment' => 'Refer to table users'],
 			'message' => ['type' => 'LONGTEXT', 'null' => TRUE, 'comment' => ''],
+			'start_time' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
+			'end_time' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
+			'run_time' => ['type' => 'INT', 'constraint' => 11, 'null' => TRUE, 'comment' => 'in seconds'],
 			'created_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 			'updated_at' => ['type' => 'TIMESTAMP', 'null' => TRUE, 'comment' => ''],
 		]);

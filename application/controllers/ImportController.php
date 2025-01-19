@@ -66,9 +66,9 @@ class ImportController extends MY_Controller
                                     'email' => $row[2],
                                     'user_contact_no' => $row[3],
                                     'user_gender' => $row[4],
-                                    'username' => (string) $row[5],
-                                    'password' => password_hash('qwerty1234!', PASSWORD_DEFAULT),
-                                    'user_status' => 1,
+                                    'username' => $row[5],
+                                    'password' => password_hash($row[6], PASSWORD_DEFAULT),
+                                    'user_status' => $row[7],
                                 ];
 
                                 log_message('error', '==============================');
