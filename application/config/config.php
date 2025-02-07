@@ -428,7 +428,9 @@ $config['csrf_token_name'] = env('CSRF_TOKEN_NAME');
 $config['csrf_cookie_name'] = env('CSRF_COOKIE_NAME');
 $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = env('CSRF_REGENERATE');
-$config['csrf_exclude_uris'] = array();
+$config['csrf_exclude_uris'] = array(
+	'queue/list'
+);
 
 /*
 |--------------------------------------------------------------------------

@@ -73,24 +73,20 @@ defined('BASEPATH') or exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
-$envVar = env_all();
-$currentEnv =  $envVar['ENVIRONMENT'] ?? 'development';
-$currentDB = $envVar[$currentEnv . '.db'] ?? '';
-
 $db['default'] = array(
-    'dsn'   => $envVar[$currentEnv . '.dsn'] ?? '',
-    'hostname' => $envVar[$currentEnv . '.hostname'] ?? 'localhost', // Your database host
-    'username' => $envVar[$currentEnv . '.username'] ?? 'root',  // Your database username
-    'password' => $envVar[$currentEnv . '.password'] ?? '',  // Your database password
-    'database' => $currentDB,  // Your database name
-    'dbdriver' => $envVar[$currentEnv . '.DBDriver'] ?? 'mysqli',
+    'dsn'   => '',
+    'hostname' => '127.0.0.1', // Your database host 127.0.0.1
+    'username' => 'root',  // Your database username
+    'password' => '',  // Your database password
+    'database' => '',  // Your database name
+    'dbdriver' => 'mysqli',
     'dbprefix' => '',
     'pconnect' => FALSE,
     'db_debug' => (ENVIRONMENT !== 'production'),
     'cache_on' => FALSE,
     'cachedir' => '',
-    'char_set' => $envVar[$currentEnv . '.charset'] ?? 'utf8mb4',
-    'dbcollat' => $envVar['collation'] ?? 'utf8mb4_general_ci',
+    'char_set' => 'utf8mb4',
+    'dbcollat' => 'utf8mb4_general_ci',
     'swap_pre' => '',
     'encrypt'  => FALSE,
     'compress' => FALSE,
@@ -98,27 +94,3 @@ $db['default'] = array(
     'failover' => array(),
     'save_queries' => TRUE
 );
-
-// $db['default'] = array(
-//     'dsn'   => '',
-//     'hostname' => 'localhost', // Your database host
-//     'username' => 'root',  // Your database username
-//     'password' => '',  // Your database password
-//     'database' => $currentDB,  // Your database name
-//     'dbdriver' => 'mysqli',
-//     'dbprefix' => '',
-//     'pconnect' => FALSE,
-//     'db_debug' => (ENVIRONMENT !== 'production'),
-//     'cache_on' => FALSE,
-//     'cachedir' => '',
-//     'char_set' => 'utf8',
-//     'dbcollat' => 'utf8_general_ci',
-//     'swap_pre' => '',
-//     'encrypt'  => FALSE,
-//     'compress' => FALSE,
-//     'stricton' => FALSE,
-//     'failover' => array(),
-//     'save_queries' => TRUE
-// );
-
-// define('DB_NAME',  $currentDB);

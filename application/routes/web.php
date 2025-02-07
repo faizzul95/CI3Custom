@@ -29,10 +29,10 @@ require __DIR__ . '/PAGES/authentication.php';
 require __DIR__ . '/PAGES/system.php';
 // require __DIR__ . '/PAGES/Error.php';
 
-Route::get('/profile', 'userProfile@index', ['middleware' => ['Sanctum']]);
+// Route::get('/profile', 'userProfile@index', ['middleware' => ['Sanctum']]);
+// Route::get('/user', 'user@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
 Route::get('/dashboard', 'dashboard@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
-Route::get('/user', 'user@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
-
+Route::get('/queue', 'QueueController@index', ['middleware' => ['Sanctum']]);
 Route::get('/csv-user-import', 'ImportController@index', ['middleware' => ['Sanctum']]);
 
 Route::set('404_override', function () {
