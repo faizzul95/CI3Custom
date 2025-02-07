@@ -112,15 +112,26 @@ class MY_Model extends CI_Model
      */
     public function select($columns = '*')
     {
-        // Handle ambiguous column names (e.g., id, created_at, updated_at) by prefixing with table name
+        // Supported aggregate functions
+        $aggregateFunctions = '/\b(SUM|MAX|MIN|AVG|DISTINCT|COUNT|GROUP_CONCAT|STDDEV|VARIANCE|FIRST|LAST|BIT_AND|BIT_OR|BIT_XOR|JSON_ARRAYAGG|JSON_OBJECTAGG|GROUPING|CHECKSUM_AGG|MEDIAN|PERCENTILE_CONT|PERCENTILE_DISC|CUME_DIST|DENSE_RANK|RANK|ROW_NUMBER|NTILE|MODE|STDEV|STDEVP|VAR|VARP|COLLECT_SET|COLLECT_LIST|APPROX_COUNT_DISTINCT|LISTAGG|CORR|COVAR_POP|COVAR_SAMP|REGR_SLOPE|REGR_INTERCEPT|REGR_COUNT|REGR_R2|REGR_AVGX|REGR_AVGY)\b/i';
+
+        // Handle column selection
         if (is_array($columns)) {
-            $columns = array_map(function ($column) {
-                return strpos($column, '.') === false ? "{$this->table}.$column" : $column;
+            $columns = array_map(function ($column) use ($aggregateFunctions) {
+                // Skip prefixing for aggregate functions and columns with table prefix
+                if (preg_match($aggregateFunctions, strtoupper($column)) || strpos($column, '.') !== false) {
+                    return $column;
+                }
+                return "{$this->table}.$column";
             }, $columns);
             $columns = implode(',', $columns);
         } else if ($columns !== '*') {
-            $columns = implode(',', array_map(function ($column) {
-                return strpos($column, '.') === false ? "{$this->table}.$column" : $column;
+            $columns = implode(',', array_map(function ($column) use ($aggregateFunctions) {
+                // Skip prefixing for aggregate functions and columns with table prefix
+                if (preg_match($aggregateFunctions, strtoupper($column)) || strpos($column, '.') !== false) {
+                    return $column;
+                }
+                return "{$this->table}.$column";
             }, explode(',', $columns)));
         } else {
             $columns = $this->table . '.*';
@@ -601,7 +612,9 @@ class MY_Model extends CI_Model
     public function toSql()
     {
         $this->_withTrashQueryFilter();
-        $query = $this->_database->get_compiled_select($this->table, false);
+        $this->_applyAggregates();
+
+        $query = $this->_database->get_compiled_select($this->table);
         $this->resetQuery();
         return $query;
     }
@@ -680,10 +693,13 @@ class MY_Model extends CI_Model
     {
         try {
             $this->_withTrashQueryFilter();
+            $this->_applyAggregates();
+
             $result = $this->_database->get($this->table)->result_array();
 
-            if (!empty($result))
+            if (!empty($result)) {
                 $result = $this->loadRelations($result);
+            }
 
             $formattedResult = $this->formatResult($result);
             $this->resetQuery();
@@ -702,12 +718,14 @@ class MY_Model extends CI_Model
     public function fetch()
     {
         try {
-
             $this->_withTrashQueryFilter();
+            $this->_applyAggregates();
+
             $result = $this->_database->get($this->table)->row_array();
 
-            if (!empty($result))
+            if (!empty($result)) {
                 $result = $this->loadRelations([$result]);
+            }
 
             $formattedResult = $this->formatResult($result[0] ?? NULL);
             $this->resetQuery();
@@ -1813,10 +1831,6 @@ class MY_Model extends CI_Model
         if (!is_numeric($value) || strlen((string) $value) !== 4) {
             throw new \InvalidArgumentException('Invalid year. Must be a four-digit number.');
         }
-
-        if ($value < 1900 || $value > date('Y')) {
-            throw new InvalidArgumentException("Invalid year: $value");
-        }
     }
 
     protected function validateInteger($value, $type, $positive = true)
@@ -1920,6 +1934,7 @@ class MY_Model extends CI_Model
         $this->primaryKey = 'id';
         $this->relations = [];
         $this->eagerLoad = [];
+        $this->aggregateRelations = [];
         $this->returnType = 'array';
         $this->_paginateColumn = [];
     }

@@ -6,6 +6,7 @@ trait EagerQuery
 {
     protected $relations = [];
     protected $eagerLoad = [];
+    protected $aggregateRelations = [];
 
     # CONDITIONAL SECTION
 
@@ -306,12 +307,23 @@ trait EagerQuery
 
     public function withCount($relations)
     {
-        if (is_string($relations)) {
-            $relations = func_get_args();
-        }
+        $relations = is_array($relations) ? $relations : func_get_args();
 
         foreach ($relations as $relation) {
-            $this->_addAggregateRelation('count', $relation, '*');
+            $normalizedRelation = is_string($relation) ? $relation : null;
+
+            if ($normalizedRelation) {
+                // Remove any existing count aggregate for this relation
+                $this->aggregateRelations = array_filter(
+                    $this->aggregateRelations,
+                    function ($aggregate) use ($normalizedRelation) {
+                        return !($aggregate['relation'] === $normalizedRelation && $aggregate['type'] === 'count');
+                    }
+                );
+
+                // Add new count aggregate
+                $this->_addAggregateRelation('count', $normalizedRelation, '*');
+            }
         }
 
         return $this;
@@ -319,18 +331,45 @@ trait EagerQuery
 
     public function withSum($relation, $column)
     {
+        // Remove any existing sum aggregate for this relation and column
+        $this->aggregateRelations = array_filter(
+            $this->aggregateRelations,
+            function ($aggregate) use ($relation, $column) {
+                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'sum' && $aggregate['column'] === $column);
+            }
+        );
+
+        // Add new sum aggregate
         $this->_addAggregateRelation('sum', $relation, $column);
         return $this;
     }
 
     public function withMin($relation, $column)
     {
+        // Remove any existing min aggregate for this relation and column
+        $this->aggregateRelations = array_filter(
+            $this->aggregateRelations,
+            function ($aggregate) use ($relation, $column) {
+                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'min' && $aggregate['column'] === $column);
+            }
+        );
+
+        // Add new min aggregate
         $this->_addAggregateRelation('min', $relation, $column);
         return $this;
     }
 
     public function withMax($relation, $column)
     {
+        // Remove any existing max aggregate for this relation and column
+        $this->aggregateRelations = array_filter(
+            $this->aggregateRelations,
+            function ($aggregate) use ($relation, $column) {
+                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'max' && $aggregate['column'] === $column);
+            }
+        );
+
+        // Add new max aggregate
         $this->_addAggregateRelation('max', $relation, $column);
         return $this;
     }
@@ -467,88 +506,113 @@ trait EagerQuery
         }
     }
 
+    private function hasAggregate($relation, $type, $column = '*')
+    {
+        foreach ($this->aggregateRelations as $aggregate) {
+            if ($aggregate['relation'] === $relation && $aggregate['type'] === $type && $aggregate['column'] === $column) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     private function _addAggregateRelation($type, $relation, $column)
     {
         if (!method_exists($this, $relation)) {
             throw new \Exception("Relation method {$relation} does not exist.");
         }
 
-        $relationConfig = $this->{$relation}();
+        $this->aggregateRelations[] = [
+            'type' => $type,
+            'relation' => $relation,
+            'column' => $column
+        ];
 
-        foreach ($relationConfig->relations as $modelName => $config) {
-            if (!$this->load->is_model_loaded($modelName)) {
-                $this->load->model($modelName);
+        return $this;
+    }
+
+    private function _applyAggregates()
+    {
+        if (empty($this->aggregateRelations)) {
+            return;
+        }
+
+        $_tempCon = clone $this->_database;
+        // Ensure the original table's columns are selected first
+        if (strpos($_tempCon->get_compiled_select('example_table', FALSE), 'SELECT *') !== false) {
+            // If no columns are selected, apply the default selection
+            $this->_database->select("{$this->table}.*");
+        }
+        unset($_tempCon);
+
+        // Prepare an array to store subqueries
+        $subqueries = [];
+
+        // Keep track of used relations to prevent duplicates
+        $processedRelations = [];
+
+        // Build each aggregate subquery
+        foreach ($this->aggregateRelations as $aggregate) {
+            // Create a unique key for the relation
+            $relationKey = $aggregate['relation'] . '_' . $aggregate['type'] . '_' . $aggregate['column'];
+
+            // Skip if this exact relation has already been processed
+            if (isset($processedRelations[$relationKey])) {
+                continue;
             }
 
-            $relationModel = $this->{$modelName};
-            $foreignKey = $config['foreignKey'];
+            // Get the specific relation configuration
+            $relationConfig = $this->{$aggregate['relation']}();
 
-            switch ($config['type']) {
-                case 'hasMany':
-                case 'hasOne':
-                    $localKey = $config['localKey'];
-                    $aggregateColumn = $column === '*' ? '1' : "{$relationModel->table}.{$column}";
+            foreach ($relationConfig->relations as $modelName => $config) {
+                if (!$this->load->is_model_loaded($modelName)) {
+                    $this->load->model($modelName);
+                }
 
-                    // Create a subquery with soft delete handling
-                    $subquery = $this->_database->select("{$type}({$aggregateColumn})")
-                        ->from($relationModel->table)
-                        ->where("{$relationModel->table}.{$foreignKey} = {$this->table}.{$localKey}");
+                $relationModel = $this->{$modelName};
+                $foreignKey = $config['foreignKey'];
+                $relationTable = $relationModel->table;
 
-                    // Apply soft delete conditions
-                    if ($relationModel->softDelete) {
-                        switch ($relationModel->_trashed) {
-                            case 'only':
-                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NOT NULL");
-                                break;
-                            case 'without':
-                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NULL");
-                                break;
-                            case 'with':
-                                // No additional filtering
-                                break;
+                switch ($config['type']) {
+                    case 'hasMany':
+                    case 'hasOne':
+                        $localKey = $config['localKey'];
+                        $column = $aggregate['column'] === '*' ? '1' : "`{$relationTable}`.`{$aggregate['column']}`";
+
+                        // Build subquery based on aggregate type
+                        $subquery = "SELECT {$aggregate['type']}({$column}) FROM `{$relationTable}` " .
+                            "WHERE `{$relationTable}`.`{$foreignKey}` = `{$this->table}`.`{$localKey}`";
+
+                        // Add soft delete condition if needed
+                        if ($relationModel->softDelete) {
+                            switch ($relationModel->_trashed) {
+                                case 'only':
+                                    $subquery .= " AND `{$relationTable}`.`{$relationModel->deleted_at}` IS NOT NULL";
+                                    break;
+                                case 'without':
+                                    $subquery .= " AND `{$relationTable}`.`{$relationModel->deleted_at}` IS NULL";
+                                    break;
+                            }
                         }
-                    }
 
-                    // Convert subquery to string
-                    $subqueryString = $subquery->get_compiled_select();
+                        // Generate alias name
+                        $aliasName = "{$aggregate['relation']}_{$aggregate['type']}";
+                        $aliasName .= $aggregate['column'] !== '*' ? "_{$aggregate['column']}" : '';
 
-                    $this->_database->select("{$this->table}.*");
-                    $this->_database->select("({$subqueryString}) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
-                    break;
+                        // Store the subquery in the array
+                        $subqueries[$aliasName] = $subquery;
 
-                case 'belongsTo':
-                    $ownerKey = $config['ownerKey'];
-                    $aggregateColumn = $column === '*' ? '1' : "{$relationModel->table}.{$column}";
-
-                    // Create a subquery with soft delete handling
-                    $subquery = $this->_database->select("{$type}({$aggregateColumn})")
-                        ->from($relationModel->table)
-                        ->where("{$relationModel->table}.{$ownerKey} = {$this->table}.{$foreignKey}");
-
-                    // Apply soft delete conditions
-                    if ($relationModel->softDelete) {
-                        switch ($relationModel->_trashed) {
-                            case 'only':
-                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NOT NULL");
-                                break;
-                            case 'without':
-                                $subquery->where("{$relationModel->table}.{$relationModel->deleted_at} IS NULL");
-                                break;
-                            case 'with':
-                                // No additional filtering
-                                break;
-                        }
-                    }
-
-                    // Convert subquery to string
-                    $subqueryString = $subquery->get_compiled_select();
-
-                    $this->_database->select("{$this->table}.*");
-                    $this->_database->select("({$subqueryString}) as {$relation}_{$type}" . ($column !== '*' ? "_{$column}" : ''));
-                    break;
+                        // Mark this relation as processed
+                        $processedRelations[$relationKey] = true;
+                        break;
+                }
             }
         }
 
-        return $this;
+        // Apply all prepared subqueries to the main query
+        foreach ($subqueries as $aliasName => $subquery) {
+            $this->_database->select("({$subquery}) as {$aliasName}");
+        }
     }
 }

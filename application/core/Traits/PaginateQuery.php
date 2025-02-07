@@ -33,6 +33,7 @@ trait PaginateQuery
         $columns = $this->_database->list_fields($this->table);
 
         $this->_withTrashQueryFilter();
+        $this->_applyAggregates();
 
         // Count total rows before filter
         $countTempTotal = clone $this->_database;
@@ -112,6 +113,7 @@ trait PaginateQuery
         $columns = empty($this->_paginateColumn) ? $this->_database->list_fields($this->table) : $this->_paginateColumn;
 
         $this->_withTrashQueryFilter();
+        $this->_applyAggregates();
 
         // Count total rows before filter
         $countTempTotal = clone $this->_database;
