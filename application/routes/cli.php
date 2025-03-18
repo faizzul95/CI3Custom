@@ -12,6 +12,10 @@
 // Luthier\Cli::maker();
 // Luthier\Cli::migrations();
 
+// Backup Database to Google Drive
+Route::cli('cron/database/{upload?}', 'Sys_backup@BackupDatabase');
+Route::cli('cron/system/{upload?}', 'Sys_backup@BackupSystem');
+
 Route::cli('optimize', function () {
     echo shell_exec('php struck clear optimize');
 });

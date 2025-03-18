@@ -33,7 +33,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 	<div class="container d-flex justify-content-center align-items-center vh-100">
 		<div class="card p-4 shadow" style="width: 100%; max-width: 400px;">
-			<h2 class="card-title text-center mb-4"> Basic Login</h2>
+			<h2 class="card-title text-center mb-2"> Basic Login </h2>
+			<em class="mb-1 text-center">Welcome to {{ env('APP_NAME') }}! 👋</em>
 			<form id="formAuthentication" method="post">
 				<div class="mb-3">
 					<label for="username" class="form-label">Username</label>
@@ -127,7 +128,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 					if (isSuccess(resCode)) {
 						setTimeout(function() {
 							window.location.href = res.data.redirectUrl;
-						}, 600);
+						}, 500);
 					}
 				} else {
 					noti(500, 'Email not found or not registered!');

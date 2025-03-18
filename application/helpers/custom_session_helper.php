@@ -23,6 +23,13 @@ if (!function_exists('isLoginCheck')) {
     }
 }
 
+if (!function_exists('requirePasswordUpdate')) {
+    function requirePasswordUpdate($key = 'password_expired')
+    {
+        return hasSession($key);
+    }
+}
+
 /**
  * Check if the user has the specified permissions.
  *

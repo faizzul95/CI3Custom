@@ -185,3 +185,15 @@ Route::group('superadmin', ['middleware' => ['Sanctum']], function () {
         });
     });
 });
+
+Route::group('security', ['middleware' => ['Sanctum']], function () {
+    // Open reset password (force update password)
+    Route::get('/change-password', function () {
+        render('auth/reset_expired_password_form', [
+            'title' => 'Update Password',
+            'currentSidebar' => 'auth',
+            'currentSubSidebar' => null,
+            'user_id' => currentUserID(),
+        ]);
+    });
+});

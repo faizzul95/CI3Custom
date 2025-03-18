@@ -2,6 +2,8 @@
 
 defined('BASEPATH') or exit('No direct script access allowed');
 
+use App\Constants\LoginPolicy;
+
 class Auth extends MY_Controller
 {
     public function __construct()
@@ -64,10 +66,15 @@ class Auth extends MY_Controller
                     ->where('user_id', $userID)
                     ->count();
 
-                $maxLoginAttempt = 5;
-                $attemptExceed = !($maxLoginAttempt <= (int) $countAttempt);
+                if (LoginPolicy::shouldLockAccount($countAttempt)) {
+                    $this->User_model->patch(['user_status' => 5], $userID);
 
-                if ($attemptExceed) {
+                    $response = [
+                        'code' => 400,
+                        'message' => 'You have reached maximum number of login attempt. Your account has been suspended.',
+                        'verify' => false
+                    ];
+                } else {
                     if (password_verify(input('password'), hasData($data, 'password', true, 'N/A'))) {
                         $response = $this->sessionLoginStart($data, false, true, 1);
 
@@ -87,7 +94,7 @@ class Auth extends MY_Controller
                             'time' => timestamp(),
                         ]);
 
-                        $countAttemptRemain = $maxLoginAttempt - (int) $countAttempt;
+                        $countAttemptRemain = LoginPolicy::MAX_FAILED_ATTEMPTS - (int) $countAttempt;
 
                         $response = [
                             'code' => 400,
@@ -95,12 +102,6 @@ class Auth extends MY_Controller
                             'verify' => false
                         ];
                     }
-                } else {
-                    $response = [
-                        'code' => 400,
-                        'message' => 'You have reached maximum number of login attempt. Your account has been suspended for 15 minutes.',
-                        'verify' => false
-                    ];
                 }
             }
         } else {
@@ -199,13 +200,19 @@ class Auth extends MY_Controller
                     $this->session->unset_userdata('impersonateUserID');
                 }
 
+                $checkPassExpired = $this->checkPasswordExpiration($dataUser);
+
+                if ($checkPassExpired['expired']) {
+                    $sessionData['password_expired'] = true;
+                }
+
                 setSession($sessionData);
 
                 $browsers = $this->agent->browser();
                 $os = $this->agent->platform();
                 $iplogin = $this->input->ip_address();
 
-                if ($notify) {
+                if (LoginPolicy::NOTIFY_NEW_DEVICE_LOGIN && $notify) {
                     // Sent email secure login
                     $template = $this->MasterEmailTemplate_model->where('email_type', 'SECURE_LOGIN')->where('email_status', '1')->fetch();
 
@@ -264,7 +271,7 @@ class Auth extends MY_Controller
                     }
                 }
 
-                if (in_array($loginType, [1, 2, 3])) {
+                if (LoginPolicy::LOG_LOGIN_HISTORY && in_array($loginType, [1, 2, 3])) {
                     $this->SystemLoginHistory_model->create(
                         [
                             'user_id' => $userID,
@@ -276,6 +283,10 @@ class Auth extends MY_Controller
                             'user_agent' => $this->input->user_agent(),
                         ]
                     );
+                }
+
+                if (isset($sessionData['expired']) && $sessionData['expired']) {
+                    return ['code' => 400, 'message' => 'Your password has expired, Please reset your password', 'verify' => false, 'redirectUrl' => url(LoginPolicy::PASSWORD_CHANGE_URL)];
                 }
 
                 return ['code' => 200, 'message' => 'Login', 'verify' => false, 'redirectUrl' => url('dashboard')];
@@ -371,5 +382,22 @@ class Auth extends MY_Controller
         $urlSafeToken = str_replace(['+', '/', '='], ['-', '_', ''], $token);
 
         return $urlSafeToken;
+    }
+
+    private function checkPasswordExpiration($userData)
+    {
+        if (!isset($userData['password_last_changed']) || empty($userData['password_last_changed'])) {
+            return ['expired' => false];
+        }
+
+        $isExpired = LoginPolicy::isPasswordExpired($userData['password_last_changed']);
+        $warningInfo = LoginPolicy::shouldWarnPasswordExpiration($userData['password_last_changed']);
+
+        return [
+            'expired' => $isExpired,
+            'warning' => $warningInfo['warning'] ?? false,
+            'message' => $warningInfo['message'] ?? null,
+            'days_remaining' => $warningInfo['days_remaining'] ?? null
+        ];
     }
 }

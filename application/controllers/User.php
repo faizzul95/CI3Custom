@@ -1,6 +1,8 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+use App\Constants\LoginPolicy;
+
 class User extends MY_Controller
 {
     public function __construct()
@@ -117,17 +119,74 @@ class User extends MY_Controller
         // Get the info from the form
         $userID = hasData($data, 'user_id', true);
 
+        // Validate username
+        $usernameErrors = LoginPolicy::validateUsername($data['username']);
+        if (!empty($usernameErrors)) {
+            // Format username errors as an HTML list
+            $errorList = '';
+            if (!empty($usernameErrors)) {
+                $errorList = '<ul>';
+                foreach ($usernameErrors as $error) {
+                    $errorList .= '<li>' . htmlspecialchars($error) . '</li>';
+                }
+                $errorList .= '</ul>';
+            }
+
+            // Return JSON response with formatted HTML error list
+            jsonResponse([
+                'code' => 422,
+                'message' => $errorList,
+                'errors' => ['username' => $usernameErrors]
+            ]);
+        }
+
+        // For new users
         if (!hasData($userID)) {
             $data['user_status'] = '1';
-            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT); // only update data for update and has the password fields exist
+
+            if (!empty($data['password'])) {
+                // Validate password
+                $passwordErrors = LoginPolicy::validatePassword(
+                    $data['password'],
+                    $data['username'],
+                    isset($data['email']) ? $data['email'] : null
+                );
+
+                if (!empty($passwordErrors)) {
+                    jsonResponse([
+                        'code' => 422,
+                        'message' => implode(' ', $passwordErrors),
+                        'errors' => ['password' => $passwordErrors]
+                    ]);
+                }
+            } else {
+                $data['password'] = LoginPolicy::DEFAULT_PASSWORD;
+            }
+
+            $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            $data['password_last_changed'] = time();
+
+            // Check if we should force password change
+            if ($data['password'] === LoginPolicy::DEFAULT_PASSWORD && LoginPolicy::FORCE_CHANGE_DEFAULT_PASSWORD) {
+                $data['password_must_change'] = 1;
+            }
         }
+
+        // Build validation rules based on policy
+        $usernameRule = 'required|min_length[' . LoginPolicy::USERNAME_MIN_LENGTH . ']' .
+            '|max_length[' . LoginPolicy::USERNAME_MAX_LENGTH . ']' .
+            '|regex_match[' . LoginPolicy::USERNAME_PATTERN . ']';
+
+        $passwordRule = 'required|trim|min_length[' . LoginPolicy::PASSWORD_MIN_LENGTH . ']' .
+            '|max_length[' . LoginPolicy::PASSWORD_MAX_LENGTH . ']' .
+            '|regex_match[' . LoginPolicy::PASSWORD_PATTERN . ']';
 
         // Insert or update user data
         $saveUser = $this->User_model
             ->setPatchValidationRules([
-                'email' => ['field' => 'email', 'label' => 'Emel', 'rules' => 'required|trim|valid_email', 'errors' => ['valid_email' => 'Please enter valid email.']],
-                'username' => ['field' => 'username', 'label' => 'Nama Pengguna', 'rules' => 'required|min_length[5]|max_length[12]'],
-                'password' => ['field' => 'password', 'label' => 'Kata Laluan', 'rules' => 'required|trim|min_length[8]|max_length[255]']
+                'email' => ['field' => 'email', 'label' => 'Email', 'rules' => 'required|trim|valid_email', 'errors' => ['valid_email' => 'Please enter valid email.']],
+                'username' => ['field' => 'username', 'label' => 'Nama Pengguna', 'rules' => $usernameRule, 'errors' => ['regex_match' => LoginPolicy::USERNAME_PATTERN_MSG]],
+                'password' => ['field' => 'password', 'label' => 'Kata Laluan', 'rules' => $passwordRule, 'errors' => ['regex_match' => LoginPolicy::PASSWORD_PATTERN_MSG]]
             ], true) // set true to update the existing rules in model
             ->insertOrUpdate(['id' => $userID], $data);
 
@@ -154,14 +213,78 @@ class User extends MY_Controller
             $response = ['code' => 422, 'message' => 'Confirm password are not match.'];
         } else {
             $userID = input('user_id');
-            $dataUser = $this->User_model->select(['id', 'password'])->find($userID);
+            $dataUser = $this->User_model->select(['id', 'password', 'username', 'email'])->find($userID);
 
             $rules = ['field' => 'confirmpassword', 'label' => 'Confirm password', 'rules' => 'trim|required|min_length[4]|max_length[20]'];
 
             $canUpdate = isSuperadmin() || isAdmin() ? true : password_verify(input('oldpassword'), $dataUser['password']);
 
             if ($canUpdate) {
-                $response = $this->User_model->setValidationRules($rules)->patch(['password' => password_hash($newpassword, PASSWORD_DEFAULT)], $userID);
+                $passwordErrors = LoginPolicy::validatePassword(
+                    $newpassword,
+                    $dataUser['username'],
+                    isset($dataUser['email']) ? $dataUser['email'] : null
+                );
+
+                if (!empty($passwordErrors)) {
+                    $errorList = '';
+                    if (!empty($passwordErrors)) {
+                        $errorList = '<ul>';
+                        foreach ($passwordErrors as $error) {
+                            $errorList .= '<li>' . htmlspecialchars($error) . '</li>';
+                        }
+                        $errorList .= '</ul>';
+                    }
+
+                    // Return JSON response with formatted HTML error list
+                    $response = [
+                        'code' => 422,
+                        'message' => $errorList,
+                        'errors' => ['password' => $passwordErrors]
+                    ];
+                } else {
+                    $response = $this->User_model->setValidationRules($rules)
+                        ->patch(
+                            [
+                                'password' => password_hash($newpassword, PASSWORD_DEFAULT),
+                                'password_last_changed' => time(),
+                            ],
+                            $userID
+                        );
+
+                    if (isSuccess($response['code'])) {
+                        if (LoginPolicy::NOTIFY_PASSWORD_CHANGE) {
+                            $template = $this->MasterEmailTemplate_model->where('email_type', 'PASSWORD_UPDATE')->where('email_status', '1')->fetch();
+
+                            // if template email is exist and active
+                            if (hasData($template)) {
+
+                                $bodyMessage = replaceTextWithData($template['email_body'], [
+                                    'name' => purify(hasData($dataUser, 'name', true, 'N/A')),
+                                    'email' => purify(hasData($dataUser, 'email', true, 'N/A')),
+                                    'username' => purify(hasData($dataUser, 'username', true, 'N/A')),
+                                    'url' => base_url()
+                                ]);
+
+                                // add to queue
+                                $this->SystemQueueJob_model->create([
+                                    'uuid' => uuid(),
+                                    'type' => 'email',
+                                    'payload' => json_encode([
+                                        'name' => purify(hasData($dataUser, 'name', true, 'N/A')),
+                                        'to' => purify(hasData($dataUser, 'email', true, 'N/A')),
+                                        'cc' => $template['email_cc'],
+                                        'bcc' => $template['email_bcc'],
+                                        'subject' => $template['email_subject'],
+                                        'body' => $bodyMessage,
+                                        'attachment' => NULL,
+                                    ]),
+                                    'created_at' => timestamp()
+                                ]);
+                            }
+                        }
+                    }
+                }
             } else {
                 $response = ['code' => 422, 'message' => 'Password are not match.'];
             }

@@ -17,10 +17,11 @@ class User_model extends MY_Model
         'user_dob',
         'username',
         'password',
+        'password_last_changed',
+        'password_must_changed',
         'user_status',
         'remember_token',
         'first_login',
-        'change_password',
         'email_verified_at'
     ];
 
@@ -33,8 +34,9 @@ class User_model extends MY_Model
         'user_dob' => ['field' => 'user_dob', 'label' => 'Birthday', 'rules' => 'required|trim|max_length[10]'],
         'username' => ['field' => 'username', 'label' => 'Username', 'rules' => 'required|min_length[5]|max_length[12]|is_unique[users.username]', 'errors' => ['is_unique' => 'This %s already exists.']],
         'password' => ['field' => 'password', 'label' => 'Password', 'rules' => 'required|trim|min_length[8]|max_length[20]'],
+        'password_last_changed' => ['field' => 'password_last_changed', 'label' => 'Last Change Password', 'rules' => 'trim|integer'],
+        'password_must_changed' => ['field' => 'password_must_changed', 'label' => 'Must Change Password', 'rules' => 'trim|integer'],
         'user_status' => ['field' => 'user_status', 'label' => 'Status', 'rules' => 'required|trim|integer'],
-        'change_password' => ['field' => 'change_password', 'label' => 'Change Password', 'rules' => 'trim|integer'],
         'first_login' => ['field' => 'first_login', 'label' => 'First login status', 'rules' => 'trim|integer']
     ];
 
