@@ -46,7 +46,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
                     <?= recaptchaInputDiv() ?>
                     <input type="hidden" class="form-control" id="id" name='id' autocomplete="off" value="<?php echo $user_id; ?>" required>
                     <button type="submit" id="updatePassBtn" class="btn btn-primary"> Update Password </button>
-                    <a href="<?php echo url('') ?>" type="button"  class="btn btn-danger"> Back to Login </a>
                 </div>
             </form>
         </div>

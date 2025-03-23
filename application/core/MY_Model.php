@@ -114,12 +114,14 @@ class MY_Model extends CI_Model
     {
         // Supported aggregate functions
         $aggregateFunctions = '/\b(SUM|MAX|MIN|AVG|DISTINCT|COUNT|GROUP_CONCAT|STDDEV|VARIANCE|FIRST|LAST|BIT_AND|BIT_OR|BIT_XOR|JSON_ARRAYAGG|JSON_OBJECTAGG|GROUPING|CHECKSUM_AGG|MEDIAN|PERCENTILE_CONT|PERCENTILE_DISC|CUME_DIST|DENSE_RANK|RANK|ROW_NUMBER|NTILE|MODE|STDEV|STDEVP|VAR|VARP|COLLECT_SET|COLLECT_LIST|APPROX_COUNT_DISTINCT|LISTAGG|CORR|COVAR_POP|COVAR_SAMP|REGR_SLOPE|REGR_INTERCEPT|REGR_COUNT|REGR_R2|REGR_AVGX|REGR_AVGY)\b/i';
-
+    
         // Handle column selection
         if (is_array($columns)) {
             $columns = array_map(function ($column) use ($aggregateFunctions) {
-                // Skip prefixing for aggregate functions and columns with table prefix
-                if (preg_match($aggregateFunctions, strtoupper($column)) || strpos($column, '.') !== false) {
+                // Skip prefixing for aggregate functions, columns with table prefix, and columns with "AS"
+                if (preg_match($aggregateFunctions, strtoupper($column)) || 
+                    strpos($column, '.') !== false || 
+                    stripos($column, ' AS ') !== false) {
                     return $column;
                 }
                 return "{$this->table}.$column";
@@ -127,8 +129,11 @@ class MY_Model extends CI_Model
             $columns = implode(',', $columns);
         } else if ($columns !== '*') {
             $columns = implode(',', array_map(function ($column) use ($aggregateFunctions) {
-                // Skip prefixing for aggregate functions and columns with table prefix
-                if (preg_match($aggregateFunctions, strtoupper($column)) || strpos($column, '.') !== false) {
+                // Trim column and check conditions
+                $column = trim($column);
+                if (preg_match($aggregateFunctions, strtoupper($column)) || 
+                    strpos($column, '.') !== false || 
+                    stripos($column, ' AS ') !== false) {
                     return $column;
                 }
                 return "{$this->table}.$column";
@@ -136,7 +141,7 @@ class MY_Model extends CI_Model
         } else {
             $columns = $this->table . '.*';
         }
-
+    
         $this->_database->select(trim($columns));
         return $this;
     }
@@ -567,15 +572,19 @@ class MY_Model extends CI_Model
         $originalState = $this->_cloneDatabaseSettings();
 
         while (true) {
-            // Restore the original query state
+            // Restore the original query conditions by cloning
+            $this->_database = clone $originalState['db'];
+
+            // Restore the original model state
             $this->connection = $originalState['connection'];
             $this->table = $originalState['table'];
             $this->primaryKey = $originalState['primaryKey'];
-            $this->relations = $originalState['relations'];
-            $this->eagerLoad = $originalState['eagerLoad'];
+            $this->relations = $originalState['relations'] ?? [];
+            $this->eagerLoad = $originalState['eagerLoad'] ?? [];
             $this->returnType = $originalState['returnType'];
+            $this->_paginateColumn = $originalState['_paginateColumn'] ?? [];
 
-            // Apply limit and offset
+            // Apply limit and offset for the current chunk
             $this->limit($size)->offset($offset);
 
             // Get results 
@@ -593,6 +602,10 @@ class MY_Model extends CI_Model
 
             // Clear the results to free memory
             unset($results);
+        }
+
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
         }
 
         // Reset internal properties for next query
@@ -695,10 +708,23 @@ class MY_Model extends CI_Model
             $this->_withTrashQueryFilter();
             $this->_applyAggregates();
 
-            $result = $this->_database->get($this->table)->result_array();
+            // Execute Query
+            $query = $this->_database->get($this->table);
+
+            // Convert to Array
+            $result = $query->result_array();
+
+            // Free result to reduce memory usage
+            if (isset($query) && method_exists($query, 'free_result')) {
+                $query->free_result();
+            }
 
             if (!empty($result)) {
                 $result = $this->loadRelations($result);
+                
+                if (function_exists('gc_collect_cycles')) {
+                    gc_collect_cycles();
+                }
             }
 
             $formattedResult = $this->formatResult($result);
@@ -721,10 +747,23 @@ class MY_Model extends CI_Model
             $this->_withTrashQueryFilter();
             $this->_applyAggregates();
 
-            $result = $this->_database->get($this->table)->row_array();
+            // Execute Query
+            $query = $this->_database->get($this->table);
+
+            // Convert to Array
+            $result = $query->row_array();
+
+            // Free result to reduce memory usage
+            if (isset($query) && method_exists($query, 'free_result')) {
+                $query->free_result();
+            }
 
             if (!empty($result)) {
                 $result = $this->loadRelations([$result]);
+
+                if (function_exists('gc_collect_cycles')) {
+                    gc_collect_cycles();
+                }
             }
 
             $formattedResult = $this->formatResult($result[0] ?? NULL);

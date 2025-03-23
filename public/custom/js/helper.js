@@ -1466,6 +1466,29 @@ const isMobileJs = () => {
 	});
 }
 
+const sleep = (seconds) => {
+	const start = Date.now();
+	const end = start + (seconds * 1000);
+
+	while (Date.now() < end) {
+		// Empty block that keeps the thread busy
+	}
+
+	return 0;
+};
+
+const usleep = (microseconds) => {
+	// Convert microseconds to milliseconds
+	const milliseconds = microseconds / 1000;
+
+	const start = Date.now();
+	const end = start + milliseconds;
+
+	while (Date.now() < end) {
+		// Empty block that keeps the thread busy
+	}
+};
+
 // URL & ASSET HELPER
 
 const base_url = () => {
@@ -2795,20 +2818,216 @@ const getImageDefault = (imageName, path = 'public/upload/default/') => {
 	return urls(path + imageName);
 }
 
-const printDiv = (idToPrint, printBtnID = 'printBtn', printBtnText = "<i class='ti ti-device-floppy ti-xs mb-1'></i> Save", pageTitlePrint = 'Print') => {
-	$("#" + idToPrint).printThis({
-		// header: $('#headerPrint').html(),
-		// footer: $('#tablePrint').html(), 
-		importCSS: false,
-		pageTitle: pageTitlePrint,
-		beforePrint: loadingBtn(printBtnID, true),
-	});
+const printDiv = (idToPrint, printBtnID = 'printBtn', printBtnText = "<i class='ti ti-device-floppy ti-xs mb-1'></i> Save", config = {}) => {
+    // Set loading state
+    loadingBtn(printBtnID, true);
 
-	setTimeout(function () {
-		loadingBtn(printBtnID, false, printBtnText);
-		$('#' + idToPrint).empty(); // reset
-	}, 800);
-}
+    // Default configuration
+    const defaultConfig = {
+        pageTitle: document.title || 'Print',  // Default to current page title
+        clearContent: true,
+        printDelay: 500,
+        cleanupDelay: 500,
+        printStyles: {},
+        orientation: 'portrait',    // 'portrait' or 'landscape'
+        paperSize: 'a4',           // 'a4', 'letter', 'legal', etc.
+        margins: {                 // in millimeters
+            top: 10,
+            right: 10,
+            bottom: 10,
+            left: 10
+        },
+        preserveColors: true       // Keep original text and background colors
+    };
+
+    // Merge default config with provided config
+    const finalConfig = { ...defaultConfig, ...config };
+
+	// Get the content to print
+	const contentToPrint = document.getElementById(idToPrint);
+        
+	// Store its original display style to restore it later if needed
+	const originalDisplay = contentToPrint.style.display;
+
+    try {
+       
+        if (!contentToPrint) {
+            throw new Error(`Element with ID "${idToPrint}" not found`);
+        }
+
+		if (finalConfig.clearContent) {
+			contentToPrint.style.display = 'none';
+		}
+
+        // Create a hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.opacity = '0';
+        document.body.appendChild(iframe);
+        
+        // Get the iframe document and write the content
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        // Create custom print styles from the config
+        const customPrintStyles = Object.entries(finalConfig.printStyles)
+            .map(([selector, styles]) => {
+                const styleRules = Object.entries(styles)
+                    .map(([property, value]) => `${property}: ${value} !important;`)
+                    .join(' ');
+                return `${selector} { ${styleRules} }`;
+            })
+            .join('\n');
+        
+        // Helper function to convert paper size to dimensions
+        const getPaperDimensions = (size) => {
+            const sizes = {
+                'a4': { width: '210mm', height: '297mm' },
+                'a3': { width: '297mm', height: '420mm' },
+                'a5': { width: '148mm', height: '210mm' },
+                'letter': { width: '215.9mm', height: '279.4mm' },
+                'legal': { width: '215.9mm', height: '355.6mm' }
+            };
+            return sizes[size.toLowerCase()] || sizes['a4'];
+        };
+        
+        // Get dimensions based on selected paper size
+        const paperDim = getPaperDimensions(finalConfig.paperSize);
+        const pageWidth = finalConfig.orientation === 'portrait' ? paperDim.width : paperDim.height;
+        const pageHeight = finalConfig.orientation === 'portrait' ? paperDim.height : paperDim.width;
+
+        iframeDoc.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${finalConfig.pageTitle}</title>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <meta name="page-size" content="${finalConfig.paperSize}">
+                <meta name="orientation" content="${finalConfig.orientation}">
+                ${Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+                  .map(link => link.outerHTML)
+                  .join('')}
+                <style>
+                    body {
+                        padding: 20px;
+                        background-color: white;
+                    }
+                    .print-container {
+                        background-color: white;
+                    }
+                    @media print {
+                        /* Page size and orientation - more compatible format */
+                        @page {
+                            size: ${finalConfig.paperSize} ${finalConfig.orientation};
+                            margin: ${finalConfig.margins.top}mm ${finalConfig.margins.right}mm ${finalConfig.margins.bottom}mm ${finalConfig.margins.left}mm;
+                        }
+                        
+                        /* Enforce size through alternative methods for broader compatibility */
+                        html, body {
+                            width: ${pageWidth};
+                            height: ${pageHeight};
+                        }
+                        
+                        /* Fix for WebKit browsers */
+                        @media print {
+                            html, body {
+                                width: ${pageWidth};
+                                height: ${pageHeight};
+                                print-color-adjust: exact;
+                                -webkit-print-color-adjust: exact;
+                            }
+                        }
+                        
+                        /* Set body and container background to white but preserve other colors */
+                        body, .print-container {
+                            background-color: white !important;
+                            background-image: none !important;
+                            padding: 0;
+                            margin: 0;
+                        }
+                        
+                        /* Fix common elements that might have grey backgrounds */
+                        .card, .container, .row, .col, section, main, header, footer {
+                            background-color: white !important;
+                            background-image: none !important;
+                        }
+                        
+                        /* Hide elements not needed for printing */
+                        .no-print, button:not(.print-visible), .btn:not(.print-visible) {
+                            display: none !important;
+                        }
+                        
+                        /* Remove box shadows */
+                        * {
+                            box-shadow: none !important;
+                        }
+                        
+                        /* Add a class for elements that should be forced to white background */
+                        .print-white-bg {
+                            background-color: white !important;
+                        }
+                        
+                        /* Custom print styles */
+                        ${customPrintStyles}
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="print-container" style="background-color: white !important;">
+                    ${finalConfig.preserveColors ? contentToPrint.innerHTML : contentToPrint.innerHTML.replace(/style="[^"]*color:[^;]*;/g, 'style="color:black;')}
+                </div>
+            </body>
+            </html>
+        `);
+        
+        iframeDoc.close();
+        
+        // Add a delay to ensure styles are loaded (using the configured delay)
+        setTimeout(() => {
+            // Focus on the iframe
+            iframe.contentWindow.focus();
+            
+            // Print the iframe content
+            iframe.contentWindow.print();
+            
+            // Remove the iframe after printing (or after a timeout)
+            iframe.contentWindow.onafterprint = () => {
+                document.body.removeChild(iframe);
+            };
+            
+            // Fallback for browsers that don't support onafterprint
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 5000);
+            
+        }, finalConfig.printDelay);
+    } catch (error) {
+        console.error('Error during printing:', error);
+        alert('Error during printing: ' + error.message);
+    } finally {
+        // Empty the div and restore its display property (if needed)
+        setTimeout(() => {
+			loadingBtn(printBtnID, false, printBtnText);
+
+            const contentToPrint = document.getElementById(idToPrint);
+            
+            if (contentToPrint) {
+                // If clearContent is false, restore the div visibility
+                if (!finalConfig.clearContent) {
+                    contentToPrint.style.display = originalDisplay;
+                }
+                                
+                if (finalConfig.clearContent) {
+                    $('#' + idToPrint).empty();
+                }
+            }
+        }, finalConfig.cleanupDelay);
+    }
+};
 
 // DATATABLE HELPER
 
@@ -3879,3 +4098,730 @@ const populateFormFields = (formID, dataArray) => {
 		}
 	});
 }
+
+// INPUT SELECT HELPER (SERVER-SIDE)
+
+const tomSelectServerSide = (selector, options = {}) => {
+	// Default options
+	const defaults = {
+		url: null, // API endpoint URL (required)
+		valueField: "id", // Value field in the returned data
+		labelField: "text", // Text field in the returned data
+		searchField: "search", // Query parameter name for search
+		pageParam: "page", // Query parameter name for pagination
+		pageSize: 15, // Number of items per page
+		params: {}, // Additional parameters to send with the request
+		placeholder: "Search...", // Placeholder text
+		loadingClass: "loading", // CSS class to apply when loading
+		preload: true, // Whether to load initial data
+		allowEmptyOption: false, // Allow empty option
+		closeAfterSelect: true, // Close dropdown after selection
+		selectedId: null, // ID of the selected item for update mode
+		loadingDelay: 2500, // Delay (ms) to wait after loading before allowing new requests
+		debug: false, // Enable debug logging
+	};
+
+	// Merge defaults with provided options
+	const settings = { ...defaults, ...options };
+
+	// Debug helper
+	const debug = (message, data) => {
+		if (settings.debug) {
+			console.log(`[TomSelect] ${message}`, data || "");
+		}
+	};
+
+	// Validate required options
+	if (!settings.url) {
+		console.error("URL is required for tomSelectServerSide");
+		return null;
+	}
+
+	// Get and process the element
+	const element =
+		typeof selector === "string" ? document.querySelector(selector) : selector;
+	if (!element) {
+		console.error("Element not found:", selector);
+		return null;
+	}
+
+	// Check if TomSelect is already initialized on the element and destroy it
+	if (element.tomselect) {
+		debug("Destroying existing TomSelect instance");
+		element.tomselect.destroy();
+	}
+
+	// Initialize state variables
+	let currentPage = 1;
+	let isLoading = false;
+	let hasMoreItems = true;
+	let initialized = false;
+	let lastQuery = "";
+	let isScrollTriggered = false;
+	let allLoadedOptions = []; // Store all loaded options
+	let loadedPages = new Set(); // Track which pages have been loaded
+	let scrollLock = false; // Prevent scroll handler from firing multiple times
+	let processingData = false; // Flag to indicate we're in the process of adding data
+
+	// Check which plugins are available
+	const availablePlugins = [];
+	// Check if TomSelect has the plugins object and specific plugins
+	if (typeof TomSelect !== "undefined" && TomSelect.plugins) {
+		if (TomSelect.plugins.dropdown_input)
+			availablePlugins.push("dropdown_input");
+	}
+
+	debug("Available plugins:", availablePlugins);
+
+	// Function to create and add a loading indicator
+	const showLoadingIndicator = () => {
+		if (!tomSelect.dropdown_content) return null;
+
+		// Remove any existing loading indicator first
+		const existingIndicator =
+			tomSelect.dropdown_content.querySelector(".loading-indicator");
+		if (existingIndicator) existingIndicator.remove();
+
+		// Create new loading indicator
+		const loadingEl = document.createElement("div");
+		loadingEl.className = "loading-indicator";
+		loadingEl.textContent = "Loading more data...";
+		loadingEl.style.textAlign = "center";
+		loadingEl.style.padding = "10px";
+		loadingEl.style.backgroundColor = "#f8f9fa";
+		loadingEl.style.borderTop = "1px solid #dee2e6";
+		loadingEl.style.color = "#495057";
+		loadingEl.style.fontSize = "14px";
+		tomSelect.dropdown_content.appendChild(loadingEl);
+
+		// Force a reflow to ensure the loading indicator is visible
+		tomSelect.dropdown_content.offsetHeight;
+
+		return loadingEl;
+	};
+
+	// Function to remove loading indicator
+	const removeLoadingIndicator = () => {
+		if (!tomSelect.dropdown_content) return;
+
+		const loadingIndicator =
+			tomSelect.dropdown_content.querySelector(".loading-indicator");
+		if (loadingIndicator) {
+			loadingIndicator.remove();
+		}
+	};
+
+	// Function to show a status message
+	const showStatusMessage = (message, isError = false, duration = 3000) => {
+		if (!tomSelect.dropdown_content) return;
+
+		const messageEl = document.createElement("div");
+		messageEl.className = isError ? "error-message" : "status-message";
+		messageEl.textContent = message;
+		messageEl.style.textAlign = "center";
+		messageEl.style.padding = "10px";
+		messageEl.style.backgroundColor = isError ? "#fff5f5" : "#f8f9fa";
+		messageEl.style.borderTop = "1px solid " + (isError ? "#fccfcf" : "#dee2e6");
+		messageEl.style.color = isError ? "#e53e3e" : "#495057";
+		messageEl.style.fontSize = "14px";
+		tomSelect.dropdown_content.appendChild(messageEl);
+
+		// Remove after specified duration
+		setTimeout(() => {
+			if (messageEl.parentNode) {
+				messageEl.parentNode.removeChild(messageEl);
+			}
+		}, duration);
+	};
+
+	// Function to directly fetch data from server with improved loading and delays
+	const fetchDataFromServer = (query, page, callback) => {
+		if (isLoading || processingData) {
+			debug("Already loading or processing data, skipping direct fetch");
+			return;
+		}
+
+		// Check if page has already been loaded
+		if (loadedPages.has(page) && initialized) {
+			debug(`Page ${page} already loaded, skipping`);
+			return;
+		}
+
+		// Set loading flags
+		isLoading = true;
+		scrollLock = true;
+
+		// Show loading indicator
+		const loadingIndicator = showLoadingIndicator();
+
+		debug(`Starting fetch for page ${page} with query "${query}"`);
+
+		// Build query parameters
+		const queryParams = new URLSearchParams();
+		queryParams.append(settings.pageParam, page.toString());
+		queryParams.append(settings.searchField, query);
+
+		// Add any custom parameters
+		Object.entries(settings.params).forEach(([key, value]) => {
+			queryParams.append(key, value.toString());
+		});
+
+		const url = `${settings.url}?${queryParams.toString()}`;
+		debug(`Direct fetch URL for page ${page}:`, url);
+
+		// Add loading class to wrapper
+		tomSelect.wrapper.classList.add(settings.loadingClass);
+
+		fetch(url)
+			.then((response) => {
+				if (!response.ok) {
+					throw new Error(`HTTP error! Status: ${response.status}`);
+				}
+				return response.json();
+			})
+			.then((data) => {
+				debug(`Received data for page ${page}:`, data);
+
+				// Process pagination info
+				if (data.pagination && typeof data.pagination.more === "boolean") {
+					hasMoreItems = data.pagination.more;
+				} else {
+					hasMoreItems =
+						data.results && data.results.length >= settings.pageSize;
+				}
+
+				// Mark this page as loaded
+				loadedPages.add(page);
+
+				// Set next page
+				currentPage = page + 1;
+
+				// Remove loading indicator
+				removeLoadingIndicator();
+
+				// Set processing flag to indicate we're adding data
+				processingData = true;
+
+				// Change the loading message to "Processing data..."
+				showStatusMessage(
+					"Processing data...",
+					false,
+					settings.loadingDelay + 500
+				);
+
+				// Wait for a substantial delay to ensure all DOM operations complete
+				usleep(settings.loadingDelay + 5000);
+
+				// Add new options to the dropdown
+				if (data.results && data.results.length > 0) {
+					// Store the loaded options
+					allLoadedOptions = [...allLoadedOptions, ...data.results];
+
+					// Save current value before making changes
+					const currentValue = tomSelect.getValue();
+
+					// Track which options are new
+					const newOptions = [];
+
+					data.results.forEach((item) => {
+						const itemId = item[settings.valueField].toString();
+
+						// Add each option even if it might already exist
+						tomSelect.addOption(item);
+						newOptions.push(item);
+
+						// For debugging
+						debug(
+							`Added item to options: ${itemId} - ${
+								item[settings.labelField]
+							}`
+						);
+					});
+
+					debug(`Added ${newOptions.length} new options to dropdown`);
+
+					// IMPORTANT: Force a complete refresh of the dropdown
+					// Close and reopen to ensure a total rebuild
+					if (tomSelect.isOpen) {
+						tomSelect.close();
+						setTimeout(() => {
+							tomSelect.open();
+							debug("Reopened dropdown to force refresh");
+						}, 100);
+					} else {
+						// If not open, force a complete refresh
+						tomSelect.refreshOptions(true);
+					}
+
+					// Show a success message
+					if (newOptions.length > 0) {
+						showStatusMessage(
+							`Added ${newOptions.length} new items`,
+							false,
+							2000
+						);
+					}
+
+					// Add a direct check to verify options were added
+					usleep(1500);
+
+					setTimeout(() => {
+						const optionCount =
+							tomSelect.dropdown_content.querySelectorAll(".option").length;
+						debug(
+							`Dropdown has ${optionCount} visible options after refresh`
+						);
+
+						// If no options are showing, try one more rebuild approach
+						if (optionCount === 0 && newOptions.length > 0) {
+							debug(
+								"No options showing after refresh, trying alternative rebuild"
+							);
+
+							// Force the dropdown to rebuild from scratch
+							tomSelect.clear();
+							tomSelect.clearOptions();
+							tomSelect.setup();
+
+							// Re-add all options
+							allLoadedOptions.forEach((item) => {
+								tomSelect.addOption(item);
+							});
+
+							// Restore selection if needed
+							if (currentValue) {
+								tomSelect.setValue(currentValue, true);
+							}
+
+							// Force dropdown refresh
+							tomSelect.refreshOptions(true);
+							if (tomSelect.isOpen) {
+								tomSelect.close();
+								setTimeout(() => tomSelect.open(), 50);
+							}
+						}
+					}, 100);
+
+					sleep(0.5);
+
+					// Wait for the UI to fully update before releasing locks
+					setTimeout(() => {
+						// Unlock loading
+						isLoading = false;
+						processingData = false;
+
+						// Final delay before releasing scroll lock
+						setTimeout(() => {
+							scrollLock = false;
+							debug("All locks released, ready for next request");
+						}, 300);
+
+						if (callback) callback(data.results || []);
+					}, settings.loadingDelay);
+				} else {
+					hasMoreItems = false;
+
+					// Show a "no more results" message
+					showStatusMessage("No more results available", false, 3000);
+
+					// Release locks
+					isLoading = false;
+					processingData = false;
+					scrollLock = false;
+
+					debug("No items found, all locks released");
+
+					if (callback) callback([]);
+				}
+			})
+			.catch((error) => {
+				console.error(`Error in direct fetch for page ${page}:`, error);
+
+				// Remove loading indicator
+				removeLoadingIndicator();
+
+				// Show error message
+				showStatusMessage("Error loading data: " + error.message, true, 5000);
+
+				hasMoreItems = false;
+				isLoading = false;
+				processingData = false;
+				scrollLock = false;
+
+				debug("Error occurred, all locks released");
+
+				if (callback) callback([]);
+			})
+			.finally(() => {
+				// Remove loading class from wrapper
+				tomSelect.wrapper.classList.remove(settings.loadingClass);
+			});
+	};
+
+	// Create TomSelect instance
+	const tomSelectConfig = {
+		valueField: settings.valueField,
+		labelField: settings.labelField,
+		searchField: [settings.labelField],
+		placeholder: settings.placeholder,
+		allowEmptyOption: settings.allowEmptyOption,
+		closeAfterSelect: settings.closeAfterSelect,
+		maxOptions: null,
+		renderCache: false, 
+
+		// Only add plugins that are available
+		plugins: availablePlugins.length > 0 ? availablePlugins : undefined,
+
+		// Handle loading from server
+		load: function (query, callback) {
+			const self = this;
+
+			// Track the current query
+			if (query !== "" && query !== lastQuery) {
+				// Reset pagination for new searches
+				currentPage = 1;
+				hasMoreItems = true;
+				allLoadedOptions = [];
+				loadedPages.clear(); // Reset loaded pages tracking
+				debug("New search query - resetting pagination", query);
+			}
+
+			lastQuery = query;
+
+			// Don't load if we're already loading or processing
+			if (isLoading || processingData) {
+				debug("Already loading or processing data, skipping request");
+				return callback();
+			}
+
+			// Don't load if there are no more items (unless it's a new search or scroll-triggered)
+			if (!hasMoreItems && initialized && !isScrollTriggered) {
+				debug(
+					"No more items to load and not scroll-triggered, skipping request"
+				);
+				return callback();
+			}
+
+			// Reset scroll trigger flag
+			isScrollTriggered = false;
+
+			// Set loading state
+			isLoading = true;
+			self.wrapper.classList.add(settings.loadingClass);
+			debug("Loading data - page:", currentPage, "query:", query);
+
+			// Show loading indicator in dropdown if open
+			if (self.dropdown_content) {
+				showLoadingIndicator();
+			}
+
+			// Build query parameters
+			const queryParams = new URLSearchParams();
+			queryParams.append(settings.pageParam, currentPage.toString());
+			queryParams.append(settings.searchField, query);
+
+			// Log the actual page being requested
+			debug(`Requesting page ${currentPage} for query "${query}"`);
+
+			// Add any custom parameters
+			Object.entries(settings.params).forEach(([key, value]) => {
+				queryParams.append(key, value.toString());
+			});
+
+			// If we're looking for a specific ID on first load
+			if (settings.selectedId && !initialized) {
+				queryParams.append("id", settings.selectedId.toString());
+				debug("Adding selected ID to query:", settings.selectedId);
+			}
+
+			const url = `${settings.url}?${queryParams.toString()}`;
+			debug("Fetching URL:", url);
+
+			// Make AJAX request
+			fetch(url)
+				.then((response) => {
+					if (!response.ok) {
+						throw new Error(`HTTP error! Status: ${response.status}`);
+					}
+					return response.json();
+				})
+				.then((data) => {
+					debug("Received data:", data);
+
+					// Check pagination status
+					if (data.pagination && typeof data.pagination.more === "boolean") {
+						hasMoreItems = data.pagination.more;
+						debug("Pagination more flag from server:", hasMoreItems);
+					} else {
+						// Assume no more items if results are fewer than page size
+						hasMoreItems =
+							data.results && data.results.length >= settings.pageSize;
+						debug("Inferred hasMore from results length:", hasMoreItems);
+					}
+
+					// Store loaded options
+					if (data.results && data.results.length > 0) {
+						allLoadedOptions = [...allLoadedOptions, ...data.results];
+					}
+
+					// Mark this page as loaded
+					loadedPages.add(currentPage);
+
+					// Always increment page counter when we get results
+					if (data.results && data.results.length > 0) {
+						// Ensure the page counter is set to the next page after this request
+						currentPage += 1;
+						debug(
+							"Set page counter to:",
+							currentPage,
+							"hasMore:",
+							hasMoreItems
+						);
+					} else {
+						debug("No results returned, not incrementing page counter");
+						hasMoreItems = false;
+					}
+
+					// Remove loading indicator
+					removeLoadingIndicator();
+
+					// Set as initialized after first load
+					if (!initialized) {
+						initialized = true;
+						debug("TomSelect initialized");
+
+						// If we have a selectedId, make sure it's properly selected
+						if (settings.selectedId) {
+							setTimeout(() => {
+								// Check if the option exists in the loaded results
+								const idExists =
+									data.results &&
+									data.results.some(
+										(item) =>
+											item[settings.valueField].toString() ===
+											settings.selectedId.toString()
+									);
+
+								if (idExists) {
+									debug(
+										"Setting initial value (found in results):",
+										settings.selectedId
+									);
+									self.setValue(settings.selectedId);
+								} else {
+									// If the option doesn't exist in the current results, we may need to fetch it specifically
+									debug(
+										"Selected ID not found in initial results, making specific request"
+									);
+
+									// Build special query parameters for getting just this ID
+									const idQueryParams = new URLSearchParams();
+									idQueryParams.append("id", settings.selectedId.toString());
+
+									// Add any custom parameters
+									Object.entries(settings.params).forEach(([key, value]) => {
+										idQueryParams.append(key, value.toString());
+									});
+
+									const idUrl = `${settings.url}?${idQueryParams.toString()}`;
+									debug("Fetching specific ID URL:", idUrl);
+
+									// Make AJAX request just for this ID
+									fetch(idUrl)
+										.then((response) => {
+											if (!response.ok) {
+												throw new Error(
+													`HTTP error! Status: ${response.status}`
+												);
+											}
+											return response.json();
+										})
+										.then((idData) => {
+											debug("Received ID specific data:", idData);
+
+											if (idData.results && idData.results.length > 0) {
+												// Add the option to TomSelect
+												const selectedItem = idData.results[0];
+												debug("Adding selected item to options:", selectedItem);
+
+												// Make sure the option is added before setting the value
+												if (!self.options[selectedItem[settings.valueField]]) {
+													self.addOption(selectedItem);
+												}
+
+												// Now set the value
+												debug(
+													"Setting value to selected ID:",
+													settings.selectedId
+												);
+												self.setValue(settings.selectedId);
+											} else {
+												debug(
+													"Selected ID not found in specific request either"
+												);
+											}
+										})
+										.catch((error) => {
+											console.error("Error fetching selected ID:", error);
+										});
+								}
+							}, 200); // Slightly longer timeout to ensure dropdown is fully initialized
+						}
+					}
+
+					// Wait for a short delay before releasing the loading lock
+					setTimeout(() => {
+						// Return the results to TomSelect
+						callback(data.results || []);
+
+						// Reset loading state after a short delay
+						setTimeout(() => {
+							isLoading = false;
+							self.wrapper.classList.remove(settings.loadingClass);
+						}, 200);
+					}, 100);
+				})
+				.catch((error) => {
+					console.error("Error loading data:", error);
+
+					// Remove loading indicator
+					removeLoadingIndicator();
+
+					// Show error message
+					if (self.dropdown_content) {
+						showStatusMessage(
+							"Error loading data: " + error.message,
+							true,
+							5000
+						);
+					}
+
+					hasMoreItems = false; // Prevent further requests on error
+
+					// Reset loading state
+					isLoading = false;
+					self.wrapper.classList.remove(settings.loadingClass);
+
+					callback();
+				});
+		},
+
+		// Render functions
+		render: {
+			option: function (item, escape) {
+				return "<div>" + escape(item[settings.labelField]) + "</div>";
+			},
+			item: function (item, escape) {
+				return "<div>" + escape(item[settings.labelField]) + "</div>";
+			},
+			no_results: function (data, escape) {
+				return '<div class="no-results">No results found</div>';
+			},
+			...(options.render || {}),
+		},
+
+		// Initialize the control
+		onInitialize: function () {
+			const self = this;
+			debug("TomSelect onInitialize called");
+
+			// Handle infinite scrolling
+			const handleScroll = function () {
+				// Skip if loading, processing, scroll locked, or no more items
+				if (isLoading || processingData || scrollLock || !hasMoreItems) {
+					debug(
+						"Skipping scroll handler - loading:",
+						isLoading,
+						"processing:",
+						processingData,
+						"scrollLock:",
+						scrollLock,
+						"hasMore:",
+						hasMoreItems
+					);
+					return;
+				}
+
+				const scrollPosition = this.scrollTop + this.offsetHeight;
+				const scrollThreshold = this.scrollHeight - 30; // Load more when within 30px of bottom
+
+				debug(
+					"Scroll position:",
+					scrollPosition,
+					"threshold:",
+					scrollThreshold
+				);
+
+				if (scrollPosition >= scrollThreshold) {
+					debug(`Scroll threshold reached for page ${currentPage}`);
+
+					// Set flag for tracking
+					isScrollTriggered = true;
+
+					// Use direct fetch
+					fetchDataFromServer(lastQuery, currentPage, null);
+				}
+			};
+
+			// Add scroll event listener when dropdown opens
+			self.on("dropdown_open", function () {
+				debug("Dropdown opened, adding scroll listener");
+				self.dropdown_content.removeEventListener("scroll", handleScroll);
+				self.dropdown_content.addEventListener("scroll", handleScroll);
+			});
+
+			// Preload data if required
+			if (settings.preload) {
+				debug("Preloading initial data");
+				self.load("");
+			}
+		},
+	};
+
+	debug("Creating TomSelect with config:", tomSelectConfig);
+	const tomSelect = new TomSelect(element, tomSelectConfig);
+
+	// Expose loadNextPage method
+	tomSelect.loadNextPage = function () {
+		if (
+			isLoading ||
+			processingData ||
+			scrollLock ||
+			(!hasMoreItems && initialized)
+		) {
+			debug(
+				"Skip loadNextPage - already loading, processing, locked, or no more items"
+			);
+			return;
+		}
+
+		debug("External loadNextPage called for page:", currentPage);
+		isScrollTriggered = true;
+
+		fetchDataFromServer(lastQuery, currentPage, null);
+	};
+
+	// Expose resetPagination method
+	tomSelect.resetPagination = function () {
+		currentPage = 1;
+		hasMoreItems = true;
+		initialized = false;
+		lastQuery = "";
+		allLoadedOptions = [];
+		loadedPages.clear();
+		scrollLock = false;
+		isLoading = false;
+		processingData = false;
+		debug("Pagination reset externally");
+		this.clearOptions();
+		this.load("");
+	};
+
+	// Expose getAllLoadedOptions method
+	tomSelect.getAllLoadedOptions = function () {
+		return allLoadedOptions;
+	};
+
+	debug("TomSelect instance created");
+	return tomSelect;
+};

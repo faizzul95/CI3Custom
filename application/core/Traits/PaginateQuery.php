@@ -29,7 +29,7 @@ trait PaginateQuery
         $page = $page ?: ($this->input->get('page') ? $this->input->get('page') : 1);
         $offset = ($page - 1) * $perPage;
 
-        $this->_paginateSearchValue = trim($searchValue);
+        $this->_paginateSearchValue = !empty($searchValue) ? trim($searchValue) : '';
         $columns = $this->_database->list_fields($this->table);
 
         $this->_withTrashQueryFilter();
@@ -109,7 +109,7 @@ trait PaginateQuery
 
     public function paginate_ajax($dataPost, $customFilter = null)
     {
-        $this->_paginateSearchValue = trim($dataPost['search']['value']);
+        $this->_paginateSearchValue = !empty($dataPost['search']['value']) ? trim($dataPost['search']['value']) : '';
         $columns = empty($this->_paginateColumn) ? $this->_database->list_fields($this->table) : $this->_paginateColumn;
 
         $this->_withTrashQueryFilter();
@@ -150,6 +150,45 @@ trait PaginateQuery
         ];
     }
 
+    public function paginate_select_input($perPage = 10, $page = null, $searchValue = '', $customFilter = null)
+    {
+        $offset = ($page - 1) * $perPage;
+
+        $this->_paginateSearchValue = !empty($searchValue) ? trim($searchValue) : '';
+        $columns = $this->_database->list_fields($this->table);
+
+        $this->_withTrashQueryFilter();
+        $this->_applyAggregates();
+
+        // Apply custom filter (advanced search)
+        if (!empty($customFilter) && is_array($customFilter)) {
+            $this->_paginateFilterCondition($customFilter);
+        }
+
+        // Apply search filter
+        $this->_paginateSearchFilter($columns);
+
+        // Count total rows after filter
+        $countTempQuery = clone $this->_database;
+        $total = (int) $countTempQuery->count_all_results($this->table);
+        unset($countTempQuery);
+
+        // Fetch only the required page of results
+        $this->limit($perPage)->offset($offset);
+
+        // Check if there are more results (for infinite scrolling)
+        $hasMore = ($offset + $perPage) < $total;
+
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
+
+        return [
+            'results' => $this->toArray()->get(),
+            'pagination' => ['more' => $hasMore]
+        ];
+    }
+
     private function _paginateFilterCondition($condition = null)
     {
         if (empty($condition)) {
@@ -173,7 +212,7 @@ trait PaginateQuery
 
         if (!empty($filterData)) {
             $this->_database->group_start();
-    
+
             foreach ($condition as $column => $value) {
                 if (!empty($value) || $value == 0) {
                     switch ($matchType) {
@@ -188,7 +227,7 @@ trait PaginateQuery
                     }
                 }
             }
-    
+
             $this->_database->group_end();
         }
     }
