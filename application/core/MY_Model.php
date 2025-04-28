@@ -83,6 +83,11 @@ class MY_Model extends CI_Model
     protected $_ignoreValidation = false; // will ignore the validation
     protected $_validationError = []; // used to store the validation error message
     public $_validationLang = 'english'; // used to set validation language for error message, default is english
+    public $debug = false; // used to set debug mode
+
+    protected $_indexString = null;
+    protected $_indexType = 'USE INDEX';
+    protected $_suggestIndexEnabled = false;
 
     public function __construct()
     {
@@ -105,44 +110,51 @@ class MY_Model extends CI_Model
     }
 
     /**
-     * Select columns for the query
+     * Select columns for the query (safe, Laravel-style)
      *
-     * @param string $columns Columns to select
+     * @param string|array $columns Columns to select
      * @return $this
      */
-    public function select($columns = '*')
+    public function select($columns = ['*'])
     {
-        // Supported aggregate functions
-        $aggregateFunctions = '/\b(SUM|MAX|MIN|AVG|DISTINCT|COUNT|GROUP_CONCAT|STDDEV|VARIANCE|FIRST|LAST|BIT_AND|BIT_OR|BIT_XOR|JSON_ARRAYAGG|JSON_OBJECTAGG|GROUPING|CHECKSUM_AGG|MEDIAN|PERCENTILE_CONT|PERCENTILE_DISC|CUME_DIST|DENSE_RANK|RANK|ROW_NUMBER|NTILE|MODE|STDEV|STDEVP|VAR|VARP|COLLECT_SET|COLLECT_LIST|APPROX_COUNT_DISTINCT|LISTAGG|CORR|COVAR_POP|COVAR_SAMP|REGR_SLOPE|REGR_INTERCEPT|REGR_COUNT|REGR_R2|REGR_AVGX|REGR_AVGY)\b/i';
-    
-        // Handle column selection
-        if (is_array($columns)) {
-            $columns = array_map(function ($column) use ($aggregateFunctions) {
-                // Skip prefixing for aggregate functions, columns with table prefix, and columns with "AS"
-                if (preg_match($aggregateFunctions, strtoupper($column)) || 
-                    strpos($column, '.') !== false || 
-                    stripos($column, ' AS ') !== false) {
-                    return $column;
-                }
-                return "{$this->table}.$column";
-            }, $columns);
-            $columns = implode(',', $columns);
-        } else if ($columns !== '*') {
-            $columns = implode(',', array_map(function ($column) use ($aggregateFunctions) {
-                // Trim column and check conditions
-                $column = trim($column);
-                if (preg_match($aggregateFunctions, strtoupper($column)) || 
-                    strpos($column, '.') !== false || 
-                    stripos($column, ' AS ') !== false) {
-                    return $column;
-                }
-                return "{$this->table}.$column";
-            }, explode(',', $columns)));
-        } else {
-            $columns = $this->table . '.*';
+        if (!is_array($columns)) {
+            $columns = explode(',', $columns);
         }
-    
-        $this->_database->select(trim($columns));
+
+        $columns = array_map(function ($column) {
+            $column = trim($column);
+            // Skip prefixing for table.column, aliases, or SQL functions
+            if (
+                strpos($column, '.') !== false ||
+                stripos($column, ' as ') !== false ||
+                preg_match('/\w+\s*\(.*\)/i', $column) // handles nested functions like SUM(price * quantity)
+            ) {
+                return $column;
+            }
+            return "{$this->table}.{$column}";
+        }, $columns);
+
+        $this->_database->select(implode(', ', $columns));
+        return $this;
+    }
+
+    /**
+     * Select raw expression for the query (Laravel-style)
+     *
+     * @param string $expression Raw SQL string with optional bindings (?)
+     * @param array $bindings Bindings to safely escape
+     * @return $this
+     */
+    public function selectRaw($expression, array $bindings = [])
+    {
+        // If bindings are provided, bind them safely using CodeIgniter's built-in methods
+        if (!empty($bindings)) {
+            $expression = vsprintf(str_replace('?', '%s', $expression), array_map(function ($value) {
+                return $this->_database->escape(trim($value));
+            }, $bindings));
+        }
+
+        $this->_database->select($expression, false); // false disables escaping
         return $this;
     }
 
@@ -476,6 +488,19 @@ class MY_Model extends CI_Model
         return $this;
     }
 
+    public function when($condition, \Closure $callback, \Closure $default = null)
+    {
+        if ($condition) {
+            return $callback($this, $condition) ?: $this;
+        }
+
+        if ($default) {
+            return $default($this, $condition) ?: $this;
+        }
+
+        return $this;
+    }
+
     /**
      * Execute a raw SQL query
      *
@@ -486,8 +511,7 @@ class MY_Model extends CI_Model
     public function rawQuery($query, $binding = [])
     {
         $query = $this->_database->compile_binds($query, $binding);
-        $this->_database = $this->_database->query($query);
-        return $this;
+        return $this->_database->query($query);
     }
 
     public function join($table, $condition, $type = 'inner')
@@ -564,12 +588,322 @@ class MY_Model extends CI_Model
         return $this;
     }
 
+    /**
+     * Sorts the collection by a given key or callback
+     * Similar to Laravel's sortBy method
+     * Supports dot notation for accessing relationship values
+     * 
+     * @param mixed $key The key to sort by (supports dot notation) or a callback function
+     * @param int $direction SORT_ASC or SORT_DESC
+     * @param int $sortFlags The sort flags (PHP sort flags)
+     * @return array Sorted results
+     */
+    public function sortBy($key, $direction = SORT_ASC, $sortFlags = SORT_REGULAR)
+    {
+        try {
+            if (empty($key) && !is_callable($key)) {
+                throw new Exception('The key or callback is required.');
+            }
+
+            $results = $this->get();
+
+            if (empty($results)) {
+                return $results;
+            }
+
+            // Extract sort values
+            $sortValues = [];
+            foreach ($results as $index => $item) {
+                // Handle callback function
+                if (is_callable($key)) {
+                    $sortValues[$index] = call_user_func($key, $item);
+                } else {
+                    $sortValues[$index] = $this->_getValueUsingDotNotation($item, $key);
+                }
+
+                // Handle null values (place them at the beginning for asc, end for desc)
+                if ($sortValues[$index] === null) {
+                    $sortValues[$index] = ($direction === SORT_ASC) ? PHP_INT_MIN : PHP_INT_MAX;
+                }
+            }
+
+            // Sort the array
+            if ($direction === SORT_ASC) {
+                asort($sortValues, $sortFlags);
+            } else {
+                arsort($sortValues, $sortFlags);
+            }
+
+            // Reorder the results based on the sorted keys
+            $sortedResults = [];
+            foreach (array_keys($sortValues) as $index) {
+                $sortedResults[] = $results[$index];
+            }
+
+            return $sortedResults;
+        } catch (Exception $e) {
+            if ($this->debug) log_message('error', 'sortBy error: ' . $e->getMessage());
+            throw $e; // Re-throw the exception after cleanup
+        }
+    }
+
+    /**
+     * Sort by multiple columns
+     * 
+     * @param array $criteria Array of sorting criteria [['column', 'direction'], ['column2', 'direction']]
+     * @return array Sorted results
+     */
+    public function sortByMultiple($criteria)
+    {
+        try {
+            if (empty($criteria)) {
+                throw new Exception('Sorting criteria are required.');
+            }
+
+            if (!is_array($criteria)) {
+                throw new Exception('Sorting criteria are required as array.');
+            }
+
+            $results = $this->get();
+
+            if (empty($results)) {
+                return $results;
+            }
+
+            return $this->_multiSort($results, $criteria);
+        } catch (Exception $e) {
+            if ($this->debug) log_message('error', 'sortByMultiple error: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    public function exists()
+    {
+        $count = $this->count();
+        return $count > 0;
+    }
+
+    public function doesntExist()
+    {
+        return !$this->exists();
+    }
+
+    /**
+     * Filters the results using a callback
+     * Similar to Laravel's filter() method
+     * 
+     * @param callable $callback The callback to filter results
+     * @return array Filtered results
+     */
+    public function filter(callable $callback)
+    {
+        $results = $this->get();
+        $filtered = [];
+
+        foreach ($results as $key => $value) {
+            if (call_user_func($callback, $value, $key)) {
+                $filtered[$key] = $value;
+            }
+        }
+
+        return array_values($filtered);
+    }
+
+    /**
+     * Retrieves results in chunks, yielding each record one by one.
+     * Similar to Laravel's cursor() method, this function processes large datasets
+     * in a memory-efficient manner by fetching and yielding records one at a time.
+     *
+     * @param int $chunkSize Optional. The number of records to load in each database query. Default: 500
+     * @return Generator A generator that yields results
+     */
+    public function cursor($chunkSize = 500)
+    {
+        // Clone the original database state
+        $originalState = $this->_cloneDatabaseSettings();
+        $this->_database = clone $originalState['db'];
+
+        // Check if primary key is indexed
+        $isIndexed = $this->isColumnIndexed($originalState['primaryKey'], $originalState['table']);
+
+        if ($this->debug) {
+            log_message('debug', "Cursor using " . ($isIndexed ? "SEEK-based ✅" : "OFFSET-based ❌") . " pagination.");
+        }
+
+        // Initialize pagination variables
+        $offset = 0;
+        $lastId = 0;
+
+        while (true) {
+
+            // Restore the original query conditions
+            $this->_database = clone $originalState['db'];
+
+            // Restore model state
+            $this->connection = $originalState['connection'];
+            $this->table = $originalState['table'];
+            $this->primaryKey = $originalState['primaryKey'];
+            $this->relations = $originalState['relations'] ?? [];
+            $this->eagerLoad = $originalState['eagerLoad'] ?? [];
+            $this->returnType = $originalState['returnType'];
+            $this->_paginateColumn = $originalState['_paginateColumn'] ?? [];
+            $this->_indexString = $originalState['index'] ?? null;
+            $this->_indexType = $originalState['indexType'] ?? 'USE INDEX';
+
+            // Log query execution start time
+            $startTime = microtime(true);
+
+            // Apply SEEK or OFFSET pagination
+            if ($isIndexed) {
+                $this->where($this->primaryKey, '>', $lastId)->orderBy($this->primaryKey, 'ASC');
+            } else {
+                $this->offset($offset);
+            }
+
+            // Fetch results
+            $results = $this->limit($chunkSize)->get();
+
+            // Log query execution time
+            $executionTime = microtime(true) - $startTime;
+            if ($this->debug) {
+                log_message('debug', "Cursor - " . ($isIndexed ? "SEEK" : "OFFSET") . " Query Execution Time: {$executionTime}s for chunk.");
+            }
+
+            // Break if no more results
+            if (empty($results)) break;
+
+            foreach ($results as $result) {
+                yield $result;
+                if ($isIndexed) {
+                    $lastId = $result[$this->primaryKey]; // Update last processed ID for SEEK pagination
+                }
+            }
+
+            // Update offset only if using OFFSET pagination
+            if (!$isIndexed) {
+                $offset += $chunkSize;
+            }
+
+            // Memory cleanup
+            unset($results);
+            if (function_exists('gc_collect_cycles')) gc_collect_cycles();
+
+            usleep(1500);
+        }
+
+        // Reset internal properties
+        $this->resetQuery();
+    }
+
+    /**
+     * Creates a lazy-loaded collection that efficiently processes large datasets with minimal memory usage.
+     * 
+     * This method returns a LazyCollection instance which loads data in small chunks only when needed,
+     * allowing for memory-efficient processing of large datasets. The LazyCollection implements Iterator
+     * and Countable interfaces, providing a fluent interface similar to Laravel's collections.
+     * 
+     * @param int $chunkSize Optional. The number of records to load in each database query. Default: 500
+     * @return LazyCollection Returns a LazyCollection instance that lazily loads query results
+     * @throws Exception If there's an error creating the lazy collection
+     * 
+     * @example
+     * // Basic usage with default chunk size
+     * $users = $this->User_model->where('status', 'active')->lazy();
+     * 
+     * // Custom chunk size for memory optimization
+     * $users = $this->User_model->where('status', 'active')->lazy(50);
+     * 
+     * // Chain collection methods for data processing
+     * $usernames = $this->User_model->lazy()
+     *     ->filter(function($user) { return $user['age'] >= 18; })
+     *     ->map(function($user) { return $user['username']; })
+     *     ->all();
+     * 
+     * // Process large datasets in a memory-efficient way
+     * foreach ($this->User_model->lazy() as $user) {
+     *     // Each iteration only loads data when needed
+     * }
+     */
+    public function lazy($chunkSize = 500)
+    {
+        try {
+            $model = $this;
+
+            // Check if primary key is indexed
+            $isIndexed = $this->isColumnIndexed($this->primaryKey, $this->table);
+
+            if ($this->debug) {
+                log_message('debug', "Lazy Collection using " . ($isIndexed ? "SEEK-based ✅" : "OFFSET-based ❌") . " pagination.");
+            }
+
+            // Data source function
+            $source = function ($size, $offset) use ($model, $isIndexed) {
+                // Clone the model to keep the query intact
+                $clonedModel = clone $model;
+
+                // Log start time
+                $startTime = microtime(true);
+
+                // Choose pagination strategy
+                if ($isIndexed) {
+                    if ($offset == 0) {
+                        $lastId = 0;
+                    } else {
+                        $lastId = $offset;
+                    }
+
+                    if ($this->debug) {
+                        log_message('debug', "Lazy Collection query for last id : {$lastId}");
+                    }
+
+                    $clonedModel->limit($size)->where("{$clonedModel->primaryKey}", ">", $lastId)->orderBy($clonedModel->primaryKey, 'ASC');
+                } else {
+                    $clonedModel->limit($size)->offset($offset);
+                }
+
+                // Execute the query
+                $results = $clonedModel->get();
+
+                // Log query execution time
+                $executionTime = microtime(true) - $startTime;
+
+                if ($clonedModel->debug) {
+                    log_message('debug', 'Lazy - ' . ($isIndexed ? "SEEK" : "OFFSET") . " Query Execution Time: {$executionTime}s for chunk.");
+                }
+
+                if (empty($results)) return [];
+
+                return is_array($results) ? $results : [$results];
+            };
+
+            // Create LazyCollection
+            $collection = new LazyCollection($source);
+            $collection->setChunkSize($chunkSize);
+
+            if (function_exists('gc_collect_cycles')) gc_collect_cycles();
+
+            return $collection;
+        } catch (Exception $e) {
+            if ($this->debug) log_message('error', 'LazyCollection error: ' . $e->getMessage());
+            throw new Exception('Failed to create lazy collection: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
     public function chunk($size, callable $callback)
     {
-        $offset = 0;
-
         // Store the original query state
         $originalState = $this->_cloneDatabaseSettings();
+
+        // Initialize pagination variables
+        $offset = 0;
+        $lastId = 0;
+
+        // Check if primary key is indexed
+        $isIndexed = $this->isColumnIndexed($originalState['primaryKey'], $originalState['table']);
+
+        if ($this->debug) {
+            log_message('debug', "Chunk using " . ($isIndexed ? "SEEK-based ✅" : "OFFSET-based ❌") . " pagination.");
+        }
 
         while (true) {
             // Restore the original query conditions by cloning
@@ -583,12 +917,27 @@ class MY_Model extends CI_Model
             $this->eagerLoad = $originalState['eagerLoad'] ?? [];
             $this->returnType = $originalState['returnType'];
             $this->_paginateColumn = $originalState['_paginateColumn'] ?? [];
+            $this->_indexString = $originalState['index'] ?? null;
+            $this->_indexType = $originalState['indexType'] ?? 'USE INDEX';
 
-            // Apply limit and offset for the current chunk
-            $this->limit($size)->offset($offset);
+            // Log query execution start time
+            $startTime = microtime(true);
 
-            // Get results 
-            $results = $this->get();
+            // Apply SEEK or OFFSET pagination
+            if ($isIndexed) {
+                $this->where($this->primaryKey, '>', $lastId)->orderBy($this->primaryKey, 'ASC');
+            } else {
+                $this->offset($offset);
+            }
+
+            // Fetch results
+            $results = $this->limit($size)->get();
+
+            // Log query execution time
+            $executionTime = microtime(true) - $startTime;
+            if ($this->debug) {
+                log_message('debug', "Chunk - " . ($isIndexed ? "SEEK" : "OFFSET") . " Query Execution Time: {$executionTime}s for chunk.");
+            }
 
             if (empty($results)) {
                 break;
@@ -598,7 +947,12 @@ class MY_Model extends CI_Model
                 break;
             }
 
-            $offset += $size;
+            // Update lastId for seek-based pagination
+            if ($isIndexed) {
+                $lastId = end($results)[$this->primaryKey];  // Get the last item's primary key
+            } else {
+                $offset += $size;
+            }
 
             // Clear the results to free memory
             unset($results);
@@ -617,7 +971,7 @@ class MY_Model extends CI_Model
     public function count()
     {
         $this->_withTrashQueryFilter();
-        $query = $this->_database->count_all_results($this->table);
+        $query = $this->_database->count_all_results($this->getTableWithIndex());
         $this->resetQuery();
         return $query;
     }
@@ -627,7 +981,7 @@ class MY_Model extends CI_Model
         $this->_withTrashQueryFilter();
         $this->_applyAggregates();
 
-        $query = $this->_database->get_compiled_select($this->table);
+        $query = $this->_database->get_compiled_select($this->getTableWithIndex());
         $this->resetQuery();
         return $query;
     }
@@ -698,6 +1052,152 @@ class MY_Model extends CI_Model
     }
 
     /**
+     * Get an array of a single column's values from the results
+     * Similar to Laravel's pluck() method
+     * Supports dot notation for accessing relationship values
+     * 
+     * @param string $column The column to retrieve values from (supports dot notation)
+     * @param string|null $key Optional key column to use as array keys (supports dot notation)
+     * @return array An array of values or key-value pairs
+     */
+    public function pluck($column, $key = null)
+    {
+        try {
+            if (empty($column)) {
+                throw new Exception('The column key is required.');
+            }
+
+            $results = $this->get();
+            $values = [];
+
+            if (empty($results)) {
+                return $values;
+            }
+
+            foreach ($results as $result) {
+                // Get column value, supporting dot notation for relations
+                $columnValue = $this->_getValueUsingDotNotation($result, $column);
+
+                if ($key !== null) {
+                    // Get key value, supporting dot notation for relations
+                    $keyValue = $this->_getValueUsingDotNotation($result, $key);
+
+                    if ($keyValue !== null) {
+                        $values[$keyValue] = $columnValue;
+                    } else {
+                        $values[] = $columnValue;
+                    }
+                } else {
+                    $values[] = $columnValue;
+                }
+            }
+
+            return $values;
+        } catch (Exception $e) {
+            if ($this->debug) log_message('error', 'Pluck error: ' . $e->getMessage());
+            throw $e; // Re-throw the exception after cleanup
+        }
+    }
+
+    /**
+     * Searches the collection for a given value or condition
+     * Similar to Laravel's contains() method
+     * Supports dot notation for accessing relationship values
+     * Supports operator comparisons (=, <, >, <=, >=, !=)
+     * Uses lazy loading for memory efficiency with large datasets
+     * 
+     * @param string|callable $key Column, value, or callback
+     * @param string|mixed $operator Comparison operator or value
+     * @param mixed $value Value to compare against (optional)
+     * @return bool True if found
+     */
+    public function contains($key, $operator = null, $value = null)
+    {
+        try {
+            // Determine if we're doing a direct value check or key-value comparison
+            if (func_num_args() === 2) {
+                $value = $operator;
+                $operator = '=';
+            }
+
+            // Validate operator if we're using the key-operator-value syntax
+            if (func_num_args() > 1 && !is_callable($key)) {
+                $validOperators = ['=', '==', '===', '!=', '!==', '<', '>', '<=', '>=', '<>'];
+                if (!in_array($operator, $validOperators)) {
+                    throw new Exception('Invalid operator. Supported operators: =, ==, ===, !=, !==, <, >, <=, >=, <>');
+                }
+            }
+
+            // Use lazy loading to process results one chunk at a time
+            $chunkSize = 1000;
+            $resultsGenerator = $this->lazy($chunkSize);
+
+            // This is a simple value check (contains(5))
+            if (func_num_args() === 1 && !is_callable($key)) {
+                foreach ($resultsGenerator as $item) {
+                    if (is_array($item) && in_array($key, $item, true)) {
+                        return true;
+                    } elseif (is_object($item) && in_array($key, get_object_vars($item), true)) {
+                        return true;
+                    } elseif ($item === $key) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Case 1: Callback function
+            if (is_callable($key)) {
+                foreach ($resultsGenerator as $k => $item) {
+                    if (call_user_func($key, $item, $k)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Case 2: Key-operator-value comparison
+            foreach ($resultsGenerator as $item) {
+                $itemValue = $this->_getValueUsingDotNotation($item, $key);
+
+                switch ($operator) {
+                    case '=':
+                    case '==':
+                        if ($itemValue == $value) return true;
+                        break;
+                    case '===':
+                        if ($itemValue === $value) return true;
+                        break;
+                    case '!=':
+                    case '<>':
+                        if ($itemValue != $value) return true;
+                        break;
+                    case '!==':
+                        if ($itemValue !== $value) return true;
+                        break;
+                    case '<':
+                        if ($itemValue < $value) return true;
+                        break;
+                    case '>':
+                        if ($itemValue > $value) return true;
+                        break;
+                    case '<=':
+                        if ($itemValue <= $value) return true;
+                        break;
+                    case '>=':
+                        if ($itemValue >= $value) return true;
+                        break;
+                }
+            }
+
+            return false;
+        } catch (Exception $e) {
+            if ($this->debug) log_message('error', 'contains error: ' . $e->getMessage());
+            throw $e; // Re-throw the exception after cleanup
+        }
+    }
+
+    /**
      * Get the results of the query
      *
      * @return array|object|json Results based on returnType
@@ -709,7 +1209,12 @@ class MY_Model extends CI_Model
             $this->_applyAggregates();
 
             // Execute Query
-            $query = $this->_database->get($this->table);
+            $query = $this->_database->get($this->getTableWithIndex());
+
+            // Log query performance if debug is enabled
+            if ($this->debug) {
+                $this->_logQueryPerformance($this->_database->last_query());
+            }
 
             // Convert to Array
             $result = $query->result_array();
@@ -717,11 +1222,12 @@ class MY_Model extends CI_Model
             // Free result to reduce memory usage
             if (isset($query) && method_exists($query, 'free_result')) {
                 $query->free_result();
+                unset($query);
             }
 
             if (!empty($result)) {
                 $result = $this->loadRelations($result);
-                
+
                 if (function_exists('gc_collect_cycles')) {
                     gc_collect_cycles();
                 }
@@ -748,7 +1254,12 @@ class MY_Model extends CI_Model
             $this->_applyAggregates();
 
             // Execute Query
-            $query = $this->_database->get($this->table);
+            $query = $this->_database->get($this->getTableWithIndex());
+
+            // Log query performance if debug is enabled
+            if ($this->debug) {
+                $this->_logQueryPerformance($this->_database->last_query());
+            }
 
             // Convert to Array
             $result = $query->row_array();
@@ -756,6 +1267,7 @@ class MY_Model extends CI_Model
             // Free result to reduce memory usage
             if (isset($query) && method_exists($query, 'free_result')) {
                 $query->free_result();
+                unset($query);
             }
 
             if (!empty($result)) {
@@ -937,18 +1449,17 @@ class MY_Model extends CI_Model
             $data = array_merge($conditions, $values);
 
             // Check if a record exists with the given attributes
-            $existingRecord = get_instance()->db->from($this->table)->where($conditions)->get()->row_array();
+            $existingRecord = get_instance()->db->select($this->primaryKey)->from($this->getTableWithIndex())->where($conditions)->limit(1)->get()->row_array();
 
-            if ($existingRecord) {
+            if (!empty($existingRecord)) {
                 // If record exists, update it
-                $id = $existingRecord[$this->primaryKey];
-                return $this->patch($data, $id);
-            } else {
-                // If record doesn't exist, create it
-                return $this->create($data);
+                return $this->patch($data, $existingRecord[$this->primaryKey]);
             }
+
+            // If record doesn't exist, create it
+            return $this->create($data);
         } catch (Exception $e) {
-            log_message('error', 'insertOrUpdate error: ' . $e->getMessage());
+            if ($this->debug) log_message('error', 'insertOrUpdate error: ' . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1006,7 +1517,7 @@ class MY_Model extends CI_Model
                 return $this->_validationError;
             }
         } catch (Exception $e) {
-            log_message('error', 'Create error: ' . $e->getMessage());
+            if ($this->debug) log_message('error', 'Create error: ' . $e->getMessage());
             return [
                 'code' => 500,
                 'error' => $e->getMessage(),
@@ -1078,7 +1589,7 @@ class MY_Model extends CI_Model
             ];
         } catch (Exception $e) {
             $this->_database->trans_rollback();
-            log_message('error', "Batch creation error in table {$this->table}: " . $e->getMessage());
+            if ($this->debug) log_message('error', "Batch creation error in table {$this->table}: " . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1139,7 +1650,7 @@ class MY_Model extends CI_Model
                 return $this->_validationError;
             }
         } catch (Exception $e) {
-            log_message('error', "Update error for id ({$id}) in table {$this->table}: "  . $e->getMessage());
+            if ($this->debug) log_message('error', "Update error for id ({$id}) in table {$this->table}: "  . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1172,7 +1683,7 @@ class MY_Model extends CI_Model
 
             return $this->batchPatch($updateData, $this->primaryKey);
         } catch (Exception $e) {
-            log_message('error', "Update error for patchAll: "  . $e->getMessage());
+            if ($this->debug) log_message('error', "Update error for patchAll: "  . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1250,7 +1761,7 @@ class MY_Model extends CI_Model
             ];
         } catch (Exception $e) {
             $this->_database->trans_rollback(); // Rollback the transaction
-            log_message('error', "Batch update error in table {$this->table}: " . $e->getMessage());
+            if ($this->debug) log_message('error', "Batch update error in table {$this->table}: " . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1304,7 +1815,7 @@ class MY_Model extends CI_Model
                 'action' => 'delete'
             ];
         } catch (Exception $e) {
-            log_message('error', "Delete error for id ({$id}) in table {$this->table}: " . $e->getMessage());
+            if ($this->debug) log_message('error', "Delete error for id ({$id}) in table {$this->table}: " . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1323,9 +1834,7 @@ class MY_Model extends CI_Model
     {
         try {
 
-            $temp = clone $this->_database;
-            $data = $this->withTrashed()->get();
-            $this->_database = $temp;
+            $data = (clone $this)->withTrashed()->get();
 
             if (!$data) {
                 throw new Exception('Records not found');
@@ -1352,7 +1861,7 @@ class MY_Model extends CI_Model
                 'action' => 'delete'
             ];
         } catch (Exception $e) {
-            log_message('error', "Delete error for multi data in table {$this->table}: " . $e->getMessage());
+            if ($this->debug) log_message('error', "Delete error for multi data in table {$this->table}: " . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1393,7 +1902,7 @@ class MY_Model extends CI_Model
                 'action' => 'delete',
             ];
         } catch (Exception $e) {
-            log_message('error', 'Force Delete Error: ' . $e->getMessage());
+            if ($this->debug) log_message('error', 'Force Delete Error: ' . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1434,7 +1943,7 @@ class MY_Model extends CI_Model
                 'action' => 'restore',
             ];
         } catch (Exception $e) {
-            log_message('error', 'Restore Error: ' . $e->getMessage());
+            if ($this->debug) log_message('error', 'Restore Error: ' . $e->getMessage());
             return [
                 'code' => 422,
                 'error' => $e->getMessage(),
@@ -1541,7 +2050,7 @@ class MY_Model extends CI_Model
                         }
                         $errorsList .= "</ul>";
 
-                        log_message('error', ucfirst($action) . ' Validation Error: ' . $errorsList);
+                        if ($this->debug) log_message('error', ucfirst($action) . ' Validation Error: ' . $errorsList);
                         $this->_validationError = [
                             'code' => 422,
                             'data' => $data,
@@ -1644,8 +2153,6 @@ class MY_Model extends CI_Model
      */
     public function reset_connection()
     {
-        // $this->_database->close();
-        $this->_database->trans_off();
         $this->_set_connection();
         return $this;
     }
@@ -1766,17 +2273,24 @@ class MY_Model extends CI_Model
         return $this;
     }
 
-    private function _cloneDatabaseSettings()
+    /**
+     * Clone database settings for a clean state
+     * 
+     * @return array
+     */
+    protected function _cloneDatabaseSettings()
     {
         return [
+            'db' => $this->_database,
             'connection' => $this->connection,
             'table' => $this->table,
             'primaryKey' => $this->primaryKey,
-            'relations' => $this->relations,
-            'eagerLoad' => $this->eagerLoad,
+            'relations' => $this->relations ?? [],
+            'eagerLoad' => $this->eagerLoad ?? [],
             'returnType' => $this->returnType,
-            '_paginateColumn' => $this->_paginateColumn,
-            'db' => clone $this->_database
+            '_paginateColumn' => $this->_paginateColumn ?? [],
+            'index' => $this->_indexString ?? null,
+            'indexType' => $this->_indexType ?? 'USE INDEX'
         ];
     }
 
@@ -1815,9 +2329,19 @@ class MY_Model extends CI_Model
 
     private function forSubQuery(Closure $callback)
     {
-        $query = $this->_database->from($this->table);
+        $query = $this->_database->from($this->getTableWithIndex());
         $callback($query);
         return $query->get_compiled_select();
+    }
+
+    public function onDebug($level = E_ALL)
+    {
+        $this->debug = true;
+
+        ini_set('display_errors', 1);
+        ini_set('display_startup_errors', 1);
+        error_reporting($level);
+        return $this;
     }
 
     /**
@@ -1916,6 +2440,107 @@ class MY_Model extends CI_Model
         return false;
     }
 
+    /**
+     * Helper method for multi-column sorting
+     * 
+     * @param array $results The result set to sort
+     * @param array $criteria The sorting criteria
+     * @return array Sorted results
+     */
+    private function _multiSort(array $results, array $criteria)
+    {
+        usort($results, function ($a, $b) use ($criteria) {
+            foreach ($criteria as $criterion) {
+                $column = $criterion[0];
+                $direction = isset($criterion[1]) && strtolower($criterion[1]) === 'desc' ? -1 : 1;
+
+                $valueA = $this->_getValueUsingDotNotation($a, $column);
+                $valueB = $this->_getValueUsingDotNotation($b, $column);
+
+                // Handle null values
+                if ($valueA === null && $valueB === null) {
+                    continue; // Both null, move to next criterion
+                } elseif ($valueA === null) {
+                    return $direction * -1; // Null values first for asc, last for desc
+                } elseif ($valueB === null) {
+                    return $direction;
+                }
+
+                // Compare values
+                if ($valueA == $valueB) {
+                    continue; // Equal, move to next criterion
+                }
+
+                return ($valueA < $valueB ? -1 : 1) * $direction;
+            }
+
+            return 0; // All criteria were equal
+        });
+
+        return $results;
+    }
+
+    /**
+     * Helper method to get value using dot notation
+     * e.g., 'user.profile.name' will get $result['user']['profile']['name']
+     * 
+     * @param mixed $item The item to extract value from
+     * @param string $key The key using dot notation (e.g., 'profile.name')
+     * @return mixed The extracted value
+     */
+    private function _getValueUsingDotNotation($item, $key)
+    {
+        // Handle simple key (no dot notation)
+        if (strpos($key, '.') === false) {
+            if (is_object($item)) {
+                // Check if it's a method that returns a value
+                if (method_exists($item, $key)) {
+                    return $item->$key();
+                }
+                return isset($item->$key) ? $item->$key : null;
+            } elseif (is_array($item)) {
+                return isset($item[$key]) ? $item[$key] : null;
+            }
+
+            return null;
+        }
+
+        // Handle dot notation
+        $segments = explode('.', $key);
+        $current = $item;
+
+        foreach ($segments as $segment) {
+            if (is_object($current)) {
+                // Check if it's an accessor method
+                if (method_exists($current, $segment)) {
+                    $current = $current->$segment();
+                } else {
+                    $current = isset($current->$segment) ? $current->$segment : null;
+                }
+            } elseif (is_array($current)) {
+                $current = isset($current[$segment]) ? $current[$segment] : null;
+            } else {
+                return null; // Cannot proceed further
+            }
+
+            // Early return if we hit a null value
+            if ($current === null) {
+                return null;
+            }
+
+            // Handle one-to-many relationships - if we have an array of items
+            if (is_array($current) && !empty($current) && !isset($current[0])) {
+                // This is an associative array, not a collection
+                continue;
+            } elseif (is_array($current) && !empty($current)) {
+                // For collections, return the first item's value
+                $current = $current[0];
+            }
+        }
+
+        return $current;
+    }
+
     # FORMAT RESPONSE HELPER
 
     public function toArray()
@@ -1976,6 +2601,240 @@ class MY_Model extends CI_Model
         $this->aggregateRelations = [];
         $this->returnType = 'array';
         $this->_paginateColumn = [];
+        $this->_indexString = null;
+        $this->_indexType = 'USE INDEX';
+        $this->_suggestIndexEnabled = false;
+    }
+
+    # PERFORMANCE HELPER
+
+    public function getTableWithIndex()
+    {
+        if (empty($this->_indexString)) {
+            return $this->table;
+        }
+
+        return $this->table . ' ' . $this->_indexType . ' (' . $this->_indexString . ')';
+    }
+
+    /**
+     * Forces MySQL to use specific indexes for the query
+     *
+     * @param string|array $indexName Index name or array of index names
+     * @return $this
+     */
+    public function forceIndex($indexName = [])
+    {
+        if (empty($indexName)) {
+            return $this;
+        }
+
+        $this->_indexString = is_array($indexName) ? implode(', ', $indexName) : $indexName;
+        $this->_indexType = 'FORCE INDEX';
+        return $this;
+    }
+
+    /**
+     * Suggests MySQL to use specific indexes for the query
+     *
+     * @param string|array $indexName Index name or array of index names
+     * @return $this
+     */
+    public function useIndex($indexName = [])
+    {
+        if (empty($indexName)) {
+            return $this;
+        }
+
+        $this->_indexString = is_array($indexName) ? implode(', ', $indexName) : $indexName;
+        $this->_indexType = 'USE INDEX';
+        return $this;
+    }
+
+    /**
+     * Instructs MySQL to ignore specific indexes for the query
+     *
+     * @param string|array $indexName Index name or array of index names
+     * @return $this
+     */
+    public function ignoreIndex($indexName = [])
+    {
+        if (empty($indexName)) {
+            return $this;
+        }
+
+        $this->_indexString = is_array($indexName) ? implode(', ', $indexName) : $indexName;
+        $this->_indexType = 'IGNORE INDEX';
+        return $this;
+    }
+
+    /**
+     * Analyzes the current query and suggests optimal indexes
+     * This should be used during development to identify missing indexes
+     *
+     * @param bool $explain Whether to run EXPLAIN on the query
+     * @return array|$this If $explain is true, returns the explain result, otherwise returns $this
+     */
+    public function suggestIndex($explain = true)
+    {
+        if (!$explain) {
+            // Just mark that we should log index suggestions after executing the query
+            $this->_suggestIndexEnabled = true;
+            return $this;
+        }
+
+        // Get the compiled select query
+        $query = (clone $this->_database)->get_compiled_select($this->table, false);
+
+        // Run EXPLAIN on the query
+        $explainResults = (clone $this->_database)->query("EXPLAIN $query")->result_array();
+
+        $suggestions = [];
+        foreach ($explainResults as $row) {
+            // Look for rows that indicate poor performance
+            if (
+                (isset($row['type']) && in_array($row['type'], ['ALL', 'index', 'range'])) ||
+                (isset($row['key']) && empty($row['key'])) ||
+                (isset($row['rows']) && $row['rows'] > 1000)
+            ) {
+                // Identify columns that would benefit from indexes
+                if (isset($row['possible_keys']) && empty($row['possible_keys'])) {
+                    // Extract columns from 'ref' or 'where' clause
+                    $columns = [];
+
+                    if (isset($row['ref']) && !empty($row['ref'])) {
+                        $columns[] = $row['ref'];
+                    }
+
+                    if (isset($row['Extra']) && strpos($row['Extra'], 'Using where') !== false) {
+                        // Try to extract column names from the compiled query's WHERE clause
+                        preg_match_all('/WHERE\s+([^\s]+)\s*=/', $query, $matches);
+                        if (!empty($matches[1])) {
+                            $columns = array_merge($columns, $matches[1]);
+                        }
+                    }
+
+                    if (!empty($columns)) {
+                        $suggestions[] = [
+                            'table' => $row['table'],
+                            'suggested_columns' => array_unique($columns),
+                            'type' => 'Missing index',
+                            'reason' => "Query scanning {$row['rows']} rows with type {$row['type']}"
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Log the suggestions
+        if (!empty($suggestions)) {
+            log_message('debug', 'Index Suggestions: ' . json_encode($suggestions, JSON_PRETTY_PRINT));
+        } else {
+            log_message('debug', 'No index suggestions for the current query. The query seems optimized.');
+        }
+
+        return $this;
+    }
+
+    /**
+     * Log performance, execution time, and suggest CREATE INDEX
+     *
+     * @param string $query
+     * @return void
+     */
+    private function _logQueryPerformance($query)
+    {
+        if (!$this->debug || stripos(trim($query), 'SELECT') !== 0) {
+            return;
+        }
+
+        $startTime = microtime(true);
+        $startMemory = memory_get_usage();
+
+        try {
+            $explainQuery = "EXPLAIN $query";
+            $explainResults = (clone $this->_database)->query($explainQuery)->result_array();
+
+            $executionTime = round((microtime(true) - $startTime) * 1000, 2); // in milliseconds
+            $memoryUsage = round((memory_get_usage() - $startMemory) / 1024, 2); // in KB
+
+            $fullScans = [];
+            $inefficientIndexes = [];
+            $indexSuggestions = [];
+
+            foreach ($explainResults as $row) {
+                $table = $row['table'] ?? null;
+                $type = $row['type'] ?? '';
+                $rows = (int) ($row['rows'] ?? 0);
+                $key = $row['key'] ?? null;
+                $possibleKeys = $row['possible_keys'] ?? null;
+                $extra = strtolower($row['Extra'] ?? '');
+
+                if (!$table) continue;
+
+                // FULL TABLE SCAN
+                if (strtoupper($type) === 'ALL') {
+                    $fullScans[] = $row;
+
+                    if (!empty($possibleKeys)) {
+                        foreach (explode(',', $possibleKeys) as $k) {
+                            $indexSuggestions[] = "CREATE INDEX idx_{$table}_" . trim($k) . " ON `$table`(" . trim($k) . ");";
+                        }
+                    } elseif (strpos($extra, 'using where') !== false) {
+                        $indexSuggestions[] = "Table `$table` performs full scan with WHERE clause — consider indexing WHERE fields.";
+                    } else {
+                        $indexSuggestions[] = "Table `$table` has no suggested indexes. Review WHERE/JOIN columns for indexing.";
+                    }
+                }
+
+                // INEFFICIENT INDEX
+                if (!empty($key) && $rows > 5000) {
+                    $inefficientIndexes[] = $row;
+                    $indexSuggestions[] = "Table `$table` scans $rows rows using `$key` — refine or create covering index.";
+                }
+            }
+
+            // Logging
+            if (!empty($fullScans)) {
+                log_message('warning', "FULL TABLE SCAN:\n" . json_encode($fullScans, JSON_PRETTY_PRINT));
+                log_message('warning', "Query:\n" . $query);
+            }
+
+            if (!empty($inefficientIndexes)) {
+                log_message('warning', "INEFFICIENT INDEX USAGE:\n" . json_encode($inefficientIndexes, JSON_PRETTY_PRINT));
+            }
+
+            if (!empty($indexSuggestions)) {
+                log_message('debug', "CREATE INDEX Suggestions:\n" . implode("\n", array_unique($indexSuggestions)));
+            }
+
+            log_message('debug', "Query Performance: Time = {$executionTime}ms | Memory = {$memoryUsage}KB");
+        } catch (Exception $e) {
+            log_message('error', 'Query performance analysis failed: ' . $e->getMessage());
+        }
+    }
+
+    private function isColumnIndexed($columnName, $tableName)
+    {
+        $query = $this->_database->query(
+            "
+            SELECT COUNT(1) as indexed 
+            FROM INFORMATION_SCHEMA.STATISTICS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = ? 
+            AND INDEX_NAME != 'PRIMARY' 
+            AND COLUMN_NAME = ?",
+            [$tableName, $columnName]
+        );
+
+        $result = $query->row_array();
+        $isIndexed = !empty($result) && $result['indexed'] > 0;
+
+        if ($this->debug) {
+            log_message('debug', "Index check for column `$columnName` on table `$tableName`: " . ($isIndexed ? "Indexed ✅" : "Not Indexed ❌"));
+        }
+
+        return $isIndexed;
     }
 
     # SECURITY HELPER
@@ -1993,32 +2852,27 @@ class MY_Model extends CI_Model
     }
 
     /**
-     * Enable safe output against XSS injection with exception key
+     * Enable safe output against XSS injection with exception keys
      *
-     * @param array $exception The key array that will be except from sanitize
+     * @param array $exceptions Keys to exclude from sanitization
      * @return $this
      */
-    public function safeOutputWithException($exception = [])
+    public function safeOutputWithException(array $exceptions = [])
     {
         $this->_secureOutput = true;
-        $this->_secureOutputException = $exception;
+        $this->_secureOutputException = array_map('strval', $exceptions);
         return $this;
     }
 
     /**
-     * Sanitize output data if safe output is enabled
+     * Sanitize output data
      *
-     * @param mixed $data Data to sanitize
+     * @param mixed $data
      * @return mixed
      */
     private function _safeOutputSanitize($data)
     {
-        if (!$this->_secureOutput) {
-            return $data;
-        }
-
-        // Early return if data is null or empty
-        if (is_null($data) || $data === '') {
+        if (!$this->_secureOutput || $data === null || $data === '') {
             return $data;
         }
 
@@ -2026,67 +2880,42 @@ class MY_Model extends CI_Model
     }
 
     /**
-     * Recursively sanitize data
+     * Recursively sanitize values
      *
-     * @param mixed $value Value to sanitize
+     * @param mixed $value
+     * @param string|null $key Current key for exceptions
      * @return mixed
-     * @throws InvalidArgumentException
      */
-    private function sanitize($value = null)
+    private function sanitize($value, $key = null)
     {
-        // Check if $value is not null or empty
-        if (!isset($value) || is_null($value)) {
+        if ($key !== null && in_array($key, $this->_secureOutputException, true)) {
             return $value;
         }
 
-        // If $value is an array, sanitize its values while checking each key against the exception list
         if (is_array($value)) {
-            if (!empty($this->_secureOutputException)) {
-                foreach ($value as $key => $item) {
-                    // Check if the key exists in the exception list
-                    if (in_array($key, $this->_secureOutputException)) {
-                        continue; // Skip sanitization for this key
-                    }
-
-                    // Recursively sanitize the value for this key
-                    $value[$key] = $this->sanitize($item);
-                }
-
-                return $value;
-            } else {
-                return array_map([$this, 'sanitize'], $value);
+            $sanitized = [];
+            foreach ($value as $k => $v) {
+                $sanitized[$k] = $this->sanitize($v, $k);
             }
+            return $sanitized;
         }
 
-        // Sanitize input based on data type
         switch (gettype($value)) {
             case 'string':
-                if (isset($this->_secureOutputException) && in_array($value, $this->_secureOutputException)) {
-                    return $value; // Skip sanitization if the string is in the exception list
-                }
-                return htmlspecialchars(trim($value), ENT_QUOTES, 'UTF-8'); // Apply XSS protection and trim
+                return htmlspecialchars(trim($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
             case 'integer':
                 return filter_var($value, FILTER_SANITIZE_NUMBER_INT);
             case 'double':
                 return filter_var($value, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
             case 'boolean':
                 return (bool) $value;
+            case 'NULL':
+                return null;
             default:
-                // Handle unexpected data types (consider throwing an exception)
-                throw new \InvalidArgumentException("Unsupported data type for sanitization: " . gettype($value));
+                return $value;
         }
     }
 
-    /**
-     * Recursively removes hidden keys from the given data array.
-     *
-     * This method takes an array ($data) and an array of hidden keys ($hidden).
-     * It removes keys listed in the $hidden array from $data.
-     * If a value in $data is an array, the method is called recursively.
-     *
-     * @param array $data The data array from which to remove hidden keys.
-     * @return array The modified data array with hidden keys removed.
-     */
     protected function removeHiddenDataRecursive($data)
     {
         // Flip the hidden array for faster key lookups
@@ -2190,5 +3019,403 @@ class MY_Model extends CI_Model
     public function __destruct()
     {
         $this->resetQuery();
+    }
+
+    /**
+     * Improves the clone method to properly handle database connection
+     */
+    public function __clone()
+    {
+        // Make sure we clone the database connection
+        if (isset($this->_database)) {
+            $this->_database = clone $this->_database;
+        }
+    }
+}
+
+# LazyCollection Class
+
+/**
+ * LazyCollection class for handling large datasets with minimal memory usage
+ */
+class LazyCollection implements Iterator, Countable
+{
+    private $source;
+    private $position = 0;
+    private $currentChunk = null;
+    private $chunkSize = 100;
+    private $chunkPosition = 0;
+    private $totalCount = null;
+    private $exhausted = false;
+    private $operations = [];
+    private $currentItems = [];
+
+    /**
+     * Create a new LazyCollection instance
+     * 
+     * @param callable $source The source data generator
+     */
+    public function __construct(callable $source)
+    {
+        $this->source = $source;
+    }
+
+    /**
+     * Get the current item
+     * 
+     * @return mixed
+     */
+    #[\ReturnTypeWillChange]
+    public function current()
+    {
+        $this->loadChunkIfNeeded();
+
+        if (!isset($this->currentItems[$this->position % $this->chunkSize])) {
+            return null;
+        }
+
+        $item = $this->currentItems[$this->position % $this->chunkSize];
+
+        // Apply operations to the item
+        foreach ($this->operations as $operation) {
+            if ($operation['type'] === 'map') {
+                $item = call_user_func($operation['callback'], $item);
+            } elseif ($operation['type'] === 'filter' && !call_user_func($operation['callback'], $item)) {
+                $this->next();
+                return $this->current();
+            }
+        }
+
+        return $item;
+    }
+
+    /**
+     * Get the current position
+     * 
+     * @return int
+     */
+    #[\ReturnTypeWillChange]
+    public function key()
+    {
+        return $this->position;
+    }
+
+    /**
+     * Move to the next item
+     */
+    #[\ReturnTypeWillChange]
+    public function next()
+    {
+        $this->position++;
+    }
+
+    /**
+     * Rewind the collection to the beginning
+     */
+    #[\ReturnTypeWillChange]
+    public function rewind()
+    {
+        $this->position = 0;
+        $this->chunkPosition = 0;
+        $this->currentItems = [];
+        $this->exhausted = false;
+    }
+
+    /**
+     * Check if the current position is valid
+     * 
+     * @return bool
+     */
+    #[\ReturnTypeWillChange]
+    public function valid()
+    {
+        if ($this->exhausted) {
+            return false;
+        }
+
+        $this->loadChunkIfNeeded();
+
+        return isset($this->currentItems[$this->position % $this->chunkSize]);
+    }
+
+    /**
+     * Count elements of the collection
+     * 
+     * @return int
+     */
+    #[\ReturnTypeWillChange]
+    public function count()
+    {
+        if ($this->totalCount === null) {
+            // We need to iterate through all items to get an accurate count for lazy collections
+            $count = 0;
+            foreach ($this as $item) {
+                $count++;
+            }
+            $this->totalCount = $count;
+            $this->rewind(); // Reset the iterator after counting
+        }
+
+        return $this->totalCount;
+    }
+
+    /**
+     * Load the next chunk of data if needed
+     */
+    private function loadChunkIfNeeded()
+    {
+        $currentChunkIndex = floor($this->position / $this->chunkSize);
+
+        if ($currentChunkIndex !== $this->chunkPosition || empty($this->currentItems)) {
+            try {
+                $source = $this->source;
+                $chunk = $source($this->chunkSize, $this->position);
+
+                if (empty($chunk)) {
+                    $this->exhausted = true;
+                    $this->currentItems = [];
+                    return;
+                }
+
+                $this->currentItems = $chunk;
+                $this->chunkPosition = $currentChunkIndex;
+            } catch (Exception $e) {
+                $this->exhausted = true;
+                $this->currentItems = [];
+                throw new Exception("Error loading data chunk: " . $e->getMessage(), 0, $e);
+            }
+        }
+    }
+
+    /**
+     * Execute a callback over each item while maintaining lazy evaluation
+     * 
+     * @param callable $callback
+     * @return LazyCollection
+     */
+    public function map(callable $callback)
+    {
+        $this->operations[] = [
+            'type' => 'map',
+            'callback' => $callback
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Filter items by a given callback while maintaining lazy evaluation
+     * 
+     * @param callable $callback
+     * @return LazyCollection
+     */
+    public function filter(callable $callback)
+    {
+        $this->operations[] = [
+            'type' => 'filter',
+            'callback' => $callback
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Execute a callback over each item
+     * 
+     * @param callable $callback
+     * @return LazyCollection
+     */
+    public function each(callable $callback)
+    {
+        foreach ($this as $key => $item) {
+            if ($callback($item, $key) === false) {
+                break;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get all items as an array (caution: loads all data into memory)
+     * 
+     * @return array
+     */
+    public function all()
+    {
+        $results = [];
+
+        foreach ($this as $item) {
+            $results[] = $item;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Get the first item in the collection
+     * 
+     * @param callable|null $callback
+     * @param mixed $default
+     * @return mixed
+     */
+    public function first(callable $callback = null, $default = null)
+    {
+        if ($callback === null) {
+            if ($this->valid()) {
+                return $this->current();
+            }
+
+            return $default;
+        }
+
+        foreach ($this as $item) {
+            if ($callback($item)) {
+                return $item;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * Take the first n items from the collection
+     * 
+     * @param int $limit
+     * @return LazyCollection
+     */
+    public function take($limit)
+    {
+        $self = $this;
+        return new LazyCollection(function ($size, $offset) use ($self, $limit) {
+            if ($offset >= $limit) {
+                return [];
+            }
+
+            $source = $this->source;
+            $items = $source($size, $offset);
+
+            return array_slice($items, 0, min(count($items), $limit - $offset));
+        });
+    }
+
+    /**
+     * Get a value from all items by key
+     * 
+     * @param string $key
+     * @return LazyCollection
+     */
+    public function pluck($key)
+    {
+        return $this->map(function ($item) use ($key) {
+            return is_array($item) ? ($item[$key] ?? null) : (is_object($item) ? ($item->$key ?? null) : null);
+        });
+    }
+
+    /**
+     * Get a specific chunk of items from the collection
+     * 
+     * @param int $size
+     * @return LazyCollection
+     */
+    public function chunk($size)
+    {
+        $chunks = [];
+        $chunk = [];
+        $i = 0;
+
+        foreach ($this as $item) {
+            $chunk[] = $item;
+            $i++;
+
+            if ($i % $size === 0) {
+                $chunks[] = $chunk;
+                $chunk = [];
+            }
+        }
+
+        if (!empty($chunk)) {
+            $chunks[] = $chunk;
+        }
+
+        return new LazyCollection(function () use ($chunks) {
+            return $chunks;
+        });
+    }
+
+    /**
+     * Create a collection of all elements that pass the given truth test
+     * 
+     * @param callable $callback
+     * @return LazyCollection
+     */
+    public function reject(callable $callback)
+    {
+        return $this->filter(function ($item) use ($callback) {
+            return !$callback($item);
+        });
+    }
+
+    /**
+     * Concatenate values of a given key as a string
+     * 
+     * @param string $key
+     * @param string $glue
+     * @return string
+     */
+    public function implode($key, $glue = '')
+    {
+        $result = '';
+        $first = true;
+
+        foreach ($this->pluck($key) as $item) {
+            if (!$first) {
+                $result .= $glue;
+            } else {
+                $first = false;
+            }
+
+            $result .= $item;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Pass the collection to the given callback and then return it
+     * 
+     * @param callable $callback
+     * @return LazyCollection
+     */
+    public function tap(callable $callback)
+    {
+        $callback($this);
+        return $this;
+    }
+
+    /**
+     * Skip the given number of items
+     * 
+     * @param int $count
+     * @return LazyCollection
+     */
+    public function skip($count)
+    {
+        return new LazyCollection(function ($size, $offset) use ($count) {
+            $source = $this->source;
+            return $source($size, $offset + $count);
+        });
+    }
+
+    /**
+     * Set the chunk size for internal data loading
+     *
+     * @param int $size
+     * @return LazyCollection
+     */
+    public function setChunkSize($size)
+    {
+        $this->chunkSize = max(1, (int)$size);
+        return $this;
     }
 }

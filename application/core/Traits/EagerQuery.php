@@ -70,6 +70,394 @@ trait EagerQuery
         return $this;
     }
 
+    public function whereRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->where($column, $operator, $value);
+        });
+    }
+
+    public function orWhereRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->where($column, $operator, $value);
+        });
+    }
+
+    public function whereBetweenRelation($relation, $column, $range)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $range) {
+                $query->whereBetweenRelation($nestedRelation, $column, $range);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $range) {
+            $query->whereBetween($column, $range[0], $range[1]);
+        });
+    }
+
+    public function orWhereBetweenRelation($relation, $column, $range)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $range) {
+                $query->whereBetweenRelation($nestedRelation, $column, $range);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $range) {
+            $query->whereBetween($column, $range[0], $range[1]);
+        });
+    }
+
+    public function whereInRelation($relation, $column, $values)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $values) {
+                $query->whereInRelation($nestedRelation, $column, $values);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $values) {
+            $query->whereIn($column, $values);
+        });
+    }
+
+    public function orWhereInRelation($relation, $column, $values)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $values) {
+                $query->whereInRelation($nestedRelation, $column, $values);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $values) {
+            $query->whereIn($column, $values);
+        });
+    }
+
+    public function whereNullRelation($relation, $column)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column) {
+                $query->whereNull($nestedRelation, $column);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column) {
+            $query->whereNull($column);
+        });
+    }
+
+    public function orWhereNullRelation($relation, $column)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column) {
+                $query->whereNull($nestedRelation, $column);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column) {
+            $query->whereNull($column);
+        });
+    }
+
+    public function whereNotNullRelation($relation, $column)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column) {
+                $query->whereNotNull($nestedRelation, $column);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column) {
+            $query->whereNotNull($column);
+        });
+    }
+
+    public function orWhereNotNullRelation($relation, $column)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column) {
+                $query->whereNotNull($nestedRelation, $column);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column) {
+            $query->whereNotNull($column);
+        });
+    }
+
+    public function whereDateRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereDateRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->whereDate($column, $operator, $value);
+        });
+    }
+
+    public function orWhereDateRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereDateRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->whereDate($column, $operator, $value);
+        });
+    }
+
+    public function whereMonthRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereMonthRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->whereMonth($column, $operator, $value);
+        });
+    }
+
+    public function orWhereMonthRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->orWhereMonthRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->orWhereMonth($column, $operator, $value);
+        });
+    }
+
+    public function whereYearRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->whereYearRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->whereYear($column, $operator, $value);
+        });
+    }
+
+    public function orWhereYearRelation($relation, $column, $operator = null, $value = null)
+    {
+        // Handle the case when the operator is omitted
+        if ($value === null && $operator !== null) {
+            $value = $operator;
+            $operator = '=';
+        }
+
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $nestedRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($nestedRelation, $column, $operator, $value) {
+                $query->orWhereYearRelation($nestedRelation, $column, $operator, $value);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($column, $operator, $value) {
+            $query->orWhereYear($column, $operator, $value);
+        });
+    }
+
+    public function whereHasRelation($relation, $nestedRelation, \Closure $callback = null)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $lastRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($lastRelation, $nestedRelation, $callback) {
+                $query->whereHasRelation($lastRelation, $nestedRelation, $callback);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($nestedRelation, $callback) {
+            $query->whereHas($nestedRelation, $callback);
+        });
+    }
+
+    public function orWhereHasRelation($relation, $nestedRelation, \Closure $callback = null)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $lastRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($lastRelation, $nestedRelation, $callback) {
+                $query->whereHasRelation($lastRelation, $nestedRelation, $callback);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($nestedRelation, $callback) {
+            $query->whereHas($nestedRelation, $callback);
+        });
+    }
+
+    public function whereDoesntHaveRelation($relation, $nestedRelation, \Closure $callback = null)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $lastRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->whereHas($parentRelation, function ($query) use ($lastRelation, $nestedRelation, $callback) {
+                $query->whereDoesntHaveRelation($lastRelation, $nestedRelation, $callback);
+            });
+        }
+
+        return $this->whereHas($relation, function ($query) use ($nestedRelation, $callback) {
+            $query->whereDoesntHave($nestedRelation, $callback);
+        });
+    }
+
+    public function orWhereDoesntHaveRelation($relation, $nestedRelation, \Closure $callback = null)
+    {
+        if (str_contains($relation, '.')) {
+            $parts = explode('.', $relation);
+            $lastRelation = array_pop($parts);
+            $parentRelation = implode('.', $parts);
+
+            return $this->orWhereHas($parentRelation, function ($query) use ($lastRelation, $nestedRelation, $callback) {
+                $query->whereDoesntHaveRelation($lastRelation, $nestedRelation, $callback);
+            });
+        }
+
+        return $this->orWhereHas($relation, function ($query) use ($nestedRelation, $callback) {
+            $query->whereDoesntHave($nestedRelation, $callback);
+        });
+    }
+
     private function _applyNestedRelation($relation, \Closure $callback = null, $boolean = 'AND', $existsType = 'EXISTS')
     {
         // Split the relation into parts
@@ -299,79 +687,138 @@ trait EagerQuery
                 $constraints = null;
             }
 
-            $this->eagerLoad[$name] = $constraints;
+
+            $columns = null;
+            if (is_string($name) && strpos($name, ':') !== false) {
+                list($name, $columnString) = explode(':', $name, 2);
+                $name = trim($name);
+                if (!empty($columnString)) {
+                    $columns = array_map('trim', explode(',', $columnString));
+                }
+            }
+
+            $this->eagerLoad[$name] = [
+                'constraints' => $constraints,
+                'columns' => $columns
+            ];
         }
 
         return $this;
     }
 
-    public function withCount($relations)
+    public function withAggregate($relations, $function, $column = '*', $alias = null)
     {
-        $relations = is_array($relations) ? $relations : func_get_args();
+        $relationMap = [];
 
-        foreach ($relations as $relation) {
-            $normalizedRelation = is_string($relation) ? $relation : null;
+        // Process relations to standardize format
+        if (is_string($relations)) {
+            $relationMap[$relations] = null;
+        } else if (is_array($relations)) {
+            foreach ($relations as $key => $value) {
+                if (is_numeric($key)) {
+                    $relationMap[$value] = [
+                        'callback' => null,
+                        'alias' => null
+                    ];
+                } else if (is_string($value)) {
+                    $relationMap[$key] = [
+                        'callback' => null,
+                        'alias' => $value
+                    ];
+                } else if (is_callable($value)) {
+                    $relationMap[$key] = [
+                        'callback' => $value,
+                        'alias' => null
+                    ];
+                }
 
-            if ($normalizedRelation) {
-                // Remove any existing count aggregate for this relation
-                $this->aggregateRelations = array_filter(
-                    $this->aggregateRelations,
-                    function ($aggregate) use ($normalizedRelation) {
-                        return !($aggregate['relation'] === $normalizedRelation && $aggregate['type'] === 'count');
-                    }
-                );
-
-                // Add new count aggregate
-                $this->_addAggregateRelation('count', $normalizedRelation, '*');
+                // Handle "as" alias syntax: 'profile as payment_code_sum'
+                if (is_string($key) && strpos($key, ' as ') !== false) {
+                    list($relationName, $customAlias) = explode(' as ', $key);
+                    $relationMap[$relationName] = [
+                        'callback' => $value,
+                        'alias' => $customAlias
+                    ];
+                    unset($relationMap[$key]);
+                }
             }
+        }
+
+        // Apply each relation
+        foreach ($relationMap as $relation => $config) {
+            $callback = $config['callback'] ?? null;
+            $customAlias = $config['alias'] ?? $alias;
+
+            // Generate the alias name
+            $aliasName = $customAlias ?: "{$relation}_{$function}" . ($column !== '*' ? "_{$column}" : '');
+
+            // Remove any existing aggregate for this relation/function/column/alias
+            $this->aggregateRelations = array_filter(
+                $this->aggregateRelations,
+                function ($aggregate) use ($relation, $function, $column, $aliasName) {
+                    return !($aggregate['relation'] === $relation &&
+                        $aggregate['type'] === $function &&
+                        $aggregate['column'] === $column &&
+                        (!isset($aggregate['alias']) || $aggregate['alias'] !== $aliasName));
+                }
+            );
+
+            // Add new aggregate with alias and callback
+            $this->_addAggregateRelation($function, $relation, $column, $aliasName, $callback);
         }
 
         return $this;
     }
 
-    public function withSum($relation, $column)
+    public function withCount($relations, $alias = null)
     {
-        // Remove any existing sum aggregate for this relation and column
-        $this->aggregateRelations = array_filter(
-            $this->aggregateRelations,
-            function ($aggregate) use ($relation, $column) {
-                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'sum' && $aggregate['column'] === $column);
+        // If relations is a string and we have more arguments
+        if (is_string($relations) && func_num_args() > 1) {
+            $args = func_get_args();
+            // Check if the second argument is a string (alias) or a closure
+            if (is_string($args[1])) {
+                $alias = $args[1];
             }
-        );
+        }
 
-        // Add new sum aggregate
-        $this->_addAggregateRelation('sum', $relation, $column);
-        return $this;
+        return $this->withAggregate($relations, 'count', '*', $alias);
     }
 
-    public function withMin($relation, $column)
+    public function withSum($relations, $column, $alias = null)
     {
-        // Remove any existing min aggregate for this relation and column
-        $this->aggregateRelations = array_filter(
-            $this->aggregateRelations,
-            function ($aggregate) use ($relation, $column) {
-                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'min' && $aggregate['column'] === $column);
-            }
-        );
+        if (is_array($relations) && func_num_args() == 2) {
+            return $this->withAggregate($relations, 'sum', $column);
+        }
 
-        // Add new min aggregate
-        $this->_addAggregateRelation('min', $relation, $column);
-        return $this;
+        return $this->withAggregate($relations, 'sum', $column, $alias);
     }
 
-    public function withMax($relation, $column)
+    public function withMin($relations, $column, $alias = null)
     {
-        // Remove any existing max aggregate for this relation and column
-        $this->aggregateRelations = array_filter(
-            $this->aggregateRelations,
-            function ($aggregate) use ($relation, $column) {
-                return !($aggregate['relation'] === $relation && $aggregate['type'] === 'max' && $aggregate['column'] === $column);
-            }
-        );
+        if (is_array($relations) && func_num_args() == 2) {
+            return $this->withAggregate($relations, 'min', $column);
+        }
 
-        // Add new max aggregate
-        $this->_addAggregateRelation('max', $relation, $column);
-        return $this;
+        return $this->withAggregate($relations, 'min', $column, $alias);
+    }
+
+    public function withMax($relations, $column, $alias = null)
+    {
+        if (is_array($relations) && func_num_args() == 2) {
+            return $this->withAggregate($relations, 'max', $column);
+        }
+
+        return $this->withAggregate($relations, 'max', $column, $alias);
+    }
+
+    public function withAvg($relations, $column, $alias = null)
+    {
+        // Handle case where relations is an array of format ['relation as alias' => function]
+        if (is_array($relations) && func_num_args() == 2) {
+            return $this->withAggregate($relations, 'avg', $column);
+        }
+
+        return $this->withAggregate($relations, 'avg', $column, $alias);
     }
 
     private function loadRelations($results)
@@ -380,15 +827,18 @@ trait EagerQuery
             return $results;
         }
 
-        foreach ($this->eagerLoad as $relation => $constraints) {
+        foreach ($this->eagerLoad as $relation => $config) {
             $relations = explode('.', $relation);
-            $this->loadNestedRelation($this, $results, $relations, $constraints);
+            $constraints = is_array($config) ? ($config['constraints'] ?? null) : $config;
+            $columns = is_array($config) ? ($config['columns'] ?? null) : null;
+
+            $this->loadNestedRelation($this, $results, $relations, $constraints, $columns);
         }
 
         return $results;
     }
 
-    private function loadNestedRelation($currentInstance, &$results, $relations, $constraints = null)
+    private function loadNestedRelation($currentInstance, &$results, $relations, $constraints = null, $columns = null)
     {
         try {
             if (count($relations) == 1) {
@@ -410,7 +860,7 @@ trait EagerQuery
                 throw new \Exception("Method {$currentRelation} does not exist in the model " . get_class($this));
             }
 
-            $configRelation = $relatedInstance->{$currentRelation}();
+            $configRelation = (clone $relatedInstance)->{$currentRelation}();
 
             if (isset($configRelation->relations)) {
                 foreach ($configRelation->relations as $modelName => $rels) {
@@ -422,8 +872,31 @@ trait EagerQuery
 
                     $relationInstance = $this->{$modelName};
 
+                    // Apply constraint callback if provided
                     if ($constraints instanceof \Closure) {
                         $constraints($relationInstance);
+                    }
+
+                    // Apply column selection if provided
+                    if (!empty($columns)) {
+                        // Always include the foreign key and primary key for proper relationship mapping
+                        $relationPrimaryKey = $relationInstance->primaryKey;
+                        $requiredColumns = [$relationPrimaryKey];
+
+                        // Add foreign key or owner key based on relation type
+                        switch ($relationType) {
+                            case 'hasMany':
+                            case 'hasOne':
+                                $requiredColumns[] = $foreignKey;
+                                break;
+                            case 'belongsTo':
+                                $requiredColumns[] = $rels['ownerKey'];
+                                break;
+                        }
+
+                        // Merge with requested columns, ensuring we include required keys
+                        $selectedColumns = array_unique(array_merge($columns, $requiredColumns));
+                        $relationInstance->select($relationInstance->table . '.' . implode(', ' . $relationInstance->table . '.', $selectedColumns));
                     }
 
                     switch ($relationType) {
@@ -451,15 +924,14 @@ trait EagerQuery
 
     private function _processQueryRelations($model, $column, $values, $chunkSize = 1000)
     {
-        $chunks = array_chunk($values, $chunkSize);
         $result = [];
 
-        foreach ($chunks as $chunk) {
+        foreach (array_chunk($values, $chunkSize) as $chunk) {
             $chunkResult = count($chunk) == 1
-                ? $model->where($column, $chunk[0])->get()
-                : $model->whereIn($column, $chunk)->get();
+                ? (clone $model)->where($column, $chunk[0])->get()
+                : (clone $model)->whereIn($column, $chunk)->get();
 
-            $result = array_merge($result, $chunkResult);
+            array_push($result, ...$chunkResult);
         }
 
         return $result;
@@ -513,20 +985,25 @@ trait EagerQuery
                 return true;
             }
         }
-        
+
         return false;
     }
 
-    private function _addAggregateRelation($type, $relation, $column)
+    private function _addAggregateRelation($type, $relation, $column, $alias = null, $callback = null)
     {
-        if (!method_exists($this, $relation)) {
-            throw new \Exception("Relation method {$relation} does not exist.");
+        $parts = explode('.', $relation);
+        $mainRelation = $parts[0];
+
+        if (!method_exists($this, $mainRelation)) {
+            throw new \Exception("Relation method {$mainRelation} does not exist.");
         }
 
         $this->aggregateRelations[] = [
             'type' => $type,
             'relation' => $relation,
-            'column' => $column
+            'column' => $column,
+            'alias' => $alias,
+            'callback' => $callback
         ];
 
         return $this;
@@ -538,13 +1015,11 @@ trait EagerQuery
             return;
         }
 
-        $_tempCon = clone $this->_database;
         // Ensure the original table's columns are selected first
-        if (strpos($_tempCon->get_compiled_select('example_table', FALSE), 'SELECT *') !== false) {
+        if (strpos((clone $this->_database)->get_compiled_select('example_table', FALSE), 'SELECT *') !== false) {
             // If no columns are selected, apply the default selection
             $this->_database->select("{$this->table}.*");
         }
-        unset($_tempCon);
 
         // Prepare an array to store subqueries
         $subqueries = [];
@@ -554,16 +1029,21 @@ trait EagerQuery
 
         // Build each aggregate subquery
         foreach ($this->aggregateRelations as $aggregate) {
-            // Create a unique key for the relation
-            $relationKey = $aggregate['relation'] . '_' . $aggregate['type'] . '_' . $aggregate['column'];
+            // Get the alias name
+            $aliasName = $aggregate['alias'] ?? "{$aggregate['relation']}_{$aggregate['type']}" .
+                ($aggregate['column'] !== '*' ? "_{$aggregate['column']}" : '');
 
             // Skip if this exact relation has already been processed
+            $relationKey = $aggregate['relation'] . '_' . $aggregate['type'] . '_' . $aggregate['column'] . '_' . $aliasName;
             if (isset($processedRelations[$relationKey])) {
                 continue;
             }
 
-            // Get the specific relation configuration
-            $relationConfig = $this->{$aggregate['relation']}();
+            $parts = explode('.', $aggregate['relation']);
+            $mainRelation = $parts[0];
+
+            // Get the main relation configuration
+            $relationConfig = $this->{$mainRelation}();
 
             foreach ($relationConfig->relations as $modelName => $config) {
                 if (!$this->load->is_model_loaded($modelName)) {
@@ -571,18 +1051,50 @@ trait EagerQuery
                 }
 
                 $relationModel = $this->{$modelName};
-                $foreignKey = $config['foreignKey'];
                 $relationTable = $relationModel->table;
+
+                // Apply the callback to the relation model if specified
+                if (isset($aggregate['callback']) && is_callable($aggregate['callback'])) {
+                    $callbackModel = clone $relationModel;
+                    $aggregate['callback']($callbackModel);
+
+                    // Extract WHERE conditions from the callback query
+                    $whereConditions = $this->_extractWhereConditions($callbackModel);
+                } else {
+                    $whereConditions = '';
+                }
 
                 switch ($config['type']) {
                     case 'hasMany':
                     case 'hasOne':
                         $localKey = $config['localKey'];
-                        $column = $aggregate['column'] === '*' ? '1' : "`{$relationTable}`.`{$aggregate['column']}`";
+                        $foreignKey = $config['foreignKey'];
 
-                        // Build subquery based on aggregate type
-                        $subquery = "SELECT {$aggregate['type']}({$column}) FROM `{$relationTable}` " .
+                        // Start building the subquery
+                        $subquery = "SELECT {$aggregate['type']}(";
+
+                        if (count($parts) > 1) {
+                            // Handle nested relations for aggregates
+                            $nestedSubquery = $this->_buildNestedAggregateSubquery(
+                                $relationModel,
+                                array_slice($parts, 1),
+                                $aggregate['column'],
+                                $aggregate['type']
+                            );
+                            $subquery .= $nestedSubquery;
+                        } else {
+                            // Simple column reference
+                            $column = $aggregate['column'] === '*' ? '1' : "`{$relationTable}`.`{$aggregate['column']}`";
+                            $subquery .= $column;
+                        }
+
+                        $subquery .= ") FROM `{$relationTable}` " .
                             "WHERE `{$relationTable}`.`{$foreignKey}` = `{$this->table}`.`{$localKey}`";
+
+                        // Add callback conditions if they exist
+                        if (!empty($whereConditions)) {
+                            $subquery .= " AND {$whereConditions}";
+                        }
 
                         // Add soft delete condition if needed
                         if ($relationModel->softDelete) {
@@ -596,11 +1108,56 @@ trait EagerQuery
                             }
                         }
 
-                        // Generate alias name
-                        $aliasName = "{$aggregate['relation']}_{$aggregate['type']}";
-                        $aliasName .= $aggregate['column'] !== '*' ? "_{$aggregate['column']}" : '';
+                        // Store the subquery in the array with the alias name
+                        $subqueries[$aliasName] = $subquery;
 
-                        // Store the subquery in the array
+                        // Mark this relation as processed
+                        $processedRelations[$relationKey] = true;
+                        break;
+
+                    case 'belongsTo':
+                        $ownerKey = $config['ownerKey'];
+                        $foreignKey = $config['foreignKey'];
+
+                        // Start building the subquery
+                        $subquery = "SELECT {$aggregate['type']}(";
+
+                        if (count($parts) > 1) {
+                            // Handle nested relations for aggregates
+                            $nestedSubquery = $this->_buildNestedAggregateSubquery(
+                                $relationModel,
+                                array_slice($parts, 1),
+                                $aggregate['column'],
+                                $aggregate['type']
+                            );
+                            $subquery .= $nestedSubquery;
+                        } else {
+                            // Simple column reference
+                            $column = $aggregate['column'] === '*' ? '1' : "`{$relationTable}`.`{$aggregate['column']}`";
+                            $subquery .= $column;
+                        }
+
+                        $subquery .= ") FROM `{$relationTable}` " .
+                            "WHERE `{$relationTable}`.`{$ownerKey}` = `{$this->table}`.`{$foreignKey}`";
+
+                        // Add callback conditions if they exist
+                        if (!empty($whereConditions)) {
+                            $subquery .= " AND {$whereConditions}";
+                        }
+
+                        // Add soft delete condition if needed
+                        if ($relationModel->softDelete) {
+                            switch ($relationModel->_trashed) {
+                                case 'only':
+                                    $subquery .= " AND `{$relationTable}`.`{$relationModel->deleted_at}` IS NOT NULL";
+                                    break;
+                                case 'without':
+                                    $subquery .= " AND `{$relationTable}`.`{$relationModel->deleted_at}` IS NULL";
+                                    break;
+                            }
+                        }
+
+                        // Store the subquery in the array with the alias name
                         $subqueries[$aliasName] = $subquery;
 
                         // Mark this relation as processed
@@ -614,5 +1171,85 @@ trait EagerQuery
         foreach ($subqueries as $aliasName => $subquery) {
             $this->_database->select("({$subquery}) as {$aliasName}");
         }
+    }
+
+    # Add helper method to extract WHERE conditions from a query
+    private function _extractWhereConditions($model)
+    {
+        // Get the current query object
+        $query = $model->_database;
+
+        // Get the query string without SELECT/FROM parts
+        $fullQuery = $query->get_compiled_select('dummy', false);
+
+        // Extract just the WHERE part - this is a simplified approach
+        if (preg_match('/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|\s+GROUP|\s+HAVING|\s*$)/is', $fullQuery, $matches)) {
+            return $matches[1];
+        }
+
+        // If no WHERE clause found
+        return '';
+    }
+
+    private function _buildNestedAggregateSubquery($model, $relationParts, $column, $aggregateType)
+    {
+        if (empty($relationParts)) {
+            $tableAlias = $model->table;
+            return $column === '*' ? '1' : "`{$tableAlias}`.`{$column}`";
+        }
+
+        $currentRelation = $relationParts[0];
+
+        if (!method_exists($model, $currentRelation)) {
+            throw new \Exception("Relation method {$currentRelation} does not exist on " . get_class($model));
+        }
+
+        $relationConfig = $model->{$currentRelation}();
+
+        if (!isset($relationConfig->relations)) {
+            throw new \Exception("Invalid relation configuration for {$currentRelation}");
+        }
+
+        foreach ($relationConfig->relations as $modelName => $config) {
+            if (!$this->load->is_model_loaded($modelName)) {
+                $this->load->model($modelName);
+            }
+
+            $relationModel = $this->{$modelName};
+            $relationTable = $relationModel->table;
+
+            switch ($config['type']) {
+                case 'hasMany':
+                case 'hasOne':
+                    if (count($relationParts) > 1) {
+                        // Still more nested relations to process
+                        return $this->_buildNestedAggregateSubquery(
+                            $relationModel,
+                            array_slice($relationParts, 1),
+                            $column,
+                            $aggregateType
+                        );
+                    } else {
+                        // We've reached the target relation
+                        return $column === '*' ? '1' : "`{$relationTable}`.`{$column}`";
+                    }
+
+                case 'belongsTo':
+                    if (count($relationParts) > 1) {
+                        // Still more nested relations to process
+                        return $this->_buildNestedAggregateSubquery(
+                            $relationModel,
+                            array_slice($relationParts, 1),
+                            $column,
+                            $aggregateType
+                        );
+                    } else {
+                        // We've reached the target relation
+                        return $column === '*' ? '1' : "`{$relationTable}`.`{$column}`";
+                    }
+            }
+        }
+
+        throw new \Exception("Could not build nested aggregate subquery for relation chain");
     }
 }

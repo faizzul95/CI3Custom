@@ -290,29 +290,31 @@ if (!function_exists('isMobileDevice')) {
 }
 
 /**
- * Generate a running number with optional prefix, suffix, and leading zeros.
+ * Generate the next running number with optional prefix, suffix, separator, and leading zeros.
  *
- * @param int|string $currentNo The current number to use as a base.
- * @param string|null $prefix The prefix to add to the generated number (default: NULL).
- * @param string|null $suffix The suffix to add to the generated number (default: NULL).
- * @param string|null $separator The separator between prefix, number, and suffix (default: NULL).
- * @param int $leadingZero The number of leading zeros for the generated number (default: 5).
- * @return array An array containing 'code' (the generated running number) and 'next' (the next number in sequence).
+ * @param int|null           $currentNo Current running number.
+ * @param string|null   $prefix Prefix for the running number.
+ * @param string|null   $separatorPrefix Separator for Prefix the running number.
+ * @param string|null   $suffix Suffix for the running number.
+ * @param string|null   $separatorSuffix Separator for Suffix the running number.
+ * @param string|null   $separator Separator between prefix/suffix and the number.
+ * @param int           $leadingZero Number of leading zeros for the running number.
+ * 
+ * @return array Associative array containing the generated code and the next number.
  */
 if (!function_exists('genRunningNo')) {
-	function genRunningNo($currentNo, $prefix = NULL, $suffix = NULL, $separator = NULL, $leadingZero = 5)
+	function genRunningNo($currentNo = NULL, $prefix = NULL, $separatorPrefix = NULL, $suffix = NULL, $separatorSuffix = NULL, $leadingZero = 5)
 	{
-		$nextNo = $currentNo + 1;
+		// Calculate the next running number
+		$nextNo = empty($currentNo) ? 1 : (int)$currentNo + 1;
 
-		// Concatenate prefix and suffix with optional separator
-		$pref = empty($separator) ? $prefix : $prefix . $separator;
-		$suf = !empty($suffix) ? (empty($separator) ? $suffix : $separator . $suffix) : NULL;
+		// Construct prefix and suffix with optional separators
+		$pref = empty($separatorPrefix) ? $prefix : (!empty($prefix) ? $prefix . $separatorPrefix : NULL);
+		$suf = !empty($suffix) ? (empty($separatorSuffix) ? $suffix : $separatorSuffix . $suffix) : NULL;
 
-		// Generate the running number with leading zeros
-		$generatedNumber = $pref . str_pad($nextNo, $leadingZero, '0', STR_PAD_LEFT) . $suf;
-
+		// Generate the code with leading zeros and return the result as an array
 		return [
-			'code' => $generatedNumber,
+			'code' => $pref . str_pad($nextNo, $leadingZero, '0', STR_PAD_LEFT) . $suf,
 			'next' => $nextNo
 		];
 	}
@@ -461,6 +463,147 @@ if (!function_exists('deleteFolder')) {
 			if (count(glob("$folder/*")) === 0) {
 				rmdir($folder);
 			}
+		}
+	}
+}
+
+if (!function_exists('mix')) {
+	function mix($path = null, $public = true)
+	{
+		static $runtime_cache = [];
+		static $manifest = null;
+
+		// Use the path as the cache key
+		$key = ($public ? 'public:' : 'private:') . $path;
+
+		// Check runtime cache first (for current request)
+		if (isset($runtime_cache[$key])) {
+			return $runtime_cache[$key];
+		}
+
+		// Load manifest file if not already loaded
+		if ($manifest === null) {
+			$manifest_path = FCPATH . 'mix-manifest.php';
+
+			if (file_exists($manifest_path)) {
+				// Check if manifest is still valid (24 hour cache by default)
+				$manifest_age = time() - filemtime($manifest_path);
+				$max_age = defined('MIX_CACHE_HOURS') ? MIX_CACHE_HOURS * 3600 : 86400; // 24 hours default
+
+				if ($manifest_age < $max_age) {
+					$manifest = include($manifest_path);
+				} else {
+					$manifest = [];
+				}
+			} else {
+				$manifest = [];
+			}
+		}
+
+		// Check if the path is in the manifest
+		if (isset($manifest[$key])) {
+			$runtime_cache[$key] = $manifest[$key];
+			return $manifest[$key];
+		}
+
+		// Path not in manifest, compute it
+		$basePath = $public ? 'public/' : '';
+		$fullPath = $basePath . ltrim($path, '/');
+
+		// If file exists, return with filemtime versioning
+		if (is_file($fullPath)) {
+			$versioned = asset($path, $public) . '?v=' . filemtime($fullPath);
+			$runtime_cache[$key] = $versioned;
+			$manifest[$key] = $versioned;
+
+			// Save updated manifest (with some throttling to prevent excessive writes)
+			_save_mix_manifest($manifest);
+
+			return $versioned;
+		}
+
+		// Fallback: scan directory for most recent file with same extension
+		$extension = pathinfo($path, PATHINFO_EXTENSION);
+		$directory = rtrim($basePath . dirname($path), '/');
+
+		if (!is_dir($directory)) {
+			$versioned = base_url($path);
+			$runtime_cache[$key] = $versioned;
+			$manifest[$key] = $versioned;
+
+			_save_mix_manifest($manifest);
+			return $versioned;
+		}
+
+		$latestFile = null;
+		$latestTime = 0;
+
+		foreach (scandir($directory) as $file) {
+			if ($file === '.' || $file === '..') continue;
+			$filePath = $directory . '/' . $file;
+			if (is_file($filePath) && pathinfo($filePath, PATHINFO_EXTENSION) === $extension) {
+				$mtime = filemtime($filePath);
+				if ($mtime > $latestTime) {
+					$latestFile = $file;
+					$latestTime = $mtime;
+				}
+			}
+		}
+
+		if ($latestFile) {
+			$urlPath = rtrim(dirname($path), '/') . '/' . $latestFile;
+			$versioned = base_url($urlPath) . '?v=' . $latestTime;
+		} else {
+			$versioned = base_url($path);
+		}
+
+		$runtime_cache[$key] = $versioned;
+		$manifest[$key] = $versioned;
+
+		// Save updated manifest
+		_save_mix_manifest($manifest);
+
+		return $versioned;
+	}
+}
+
+if (!function_exists('_save_mix_manifest')) {
+	function _save_mix_manifest($manifest)
+	{
+		static $last_write = 0;
+		static $pending_writes = 0;
+
+		$manifest_path = FCPATH . 'mix-manifest.php';
+		$now = time();
+
+		// Throttle writes: one write per 10 seconds max, unless we have 10+ pending changes
+		if ($now - $last_write < 10 && $pending_writes < 10) {
+			$pending_writes++;
+			return;
+		}
+
+		// Update manifest file atomically
+		$temp_file = $manifest_path . '.tmp';
+		file_put_contents(
+			$temp_file,
+			'<?php return ' . var_export($manifest, true) . ';',
+			LOCK_EX
+		);
+
+		// Atomic rename is safer than direct file_put_contents
+		rename($temp_file, $manifest_path);
+
+		$last_write = $now;
+		$pending_writes = 0;
+	}
+}
+
+if (!function_exists('delete_mix_manifest')) {
+	function delete_mix_manifest($filesName = 'mix-manifest.php')
+	{
+		$manifest_path = FCPATH . $filesName;
+		if (file_exists($manifest_path)) {
+			unlink($manifest_path);
 		}
 	}
 }

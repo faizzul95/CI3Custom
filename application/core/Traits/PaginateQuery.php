@@ -36,9 +36,7 @@ trait PaginateQuery
         $this->_applyAggregates();
 
         // Count total rows before filter
-        $countTempTotal = clone $this->_database;
-        $totalRecords = (int) $countTempTotal->count_all_results($this->table);
-        unset($countTempTotal);
+        $totalRecords = (int) (clone $this->_database)->count_all_results($this->getTableWithIndex());
 
         // Apply custom filter (advanced search)
         if (!empty($customFilter) && is_array($customFilter)) {
@@ -49,9 +47,7 @@ trait PaginateQuery
         $this->_paginateSearchFilter($columns);
 
         // Count total rows after filter
-        $countTempQuery = clone $this->_database;
-        $total = (int) $countTempQuery->count_all_results($this->table);
-        unset($countTempQuery);
+        $total = (int) (clone $this->_database)->count_all_results($this->getTableWithIndex());
 
         // Fetch only the required page of results
         $this->limit($perPage)->offset($offset);
@@ -116,9 +112,7 @@ trait PaginateQuery
         $this->_applyAggregates();
 
         // Count total rows before filter
-        $countTempTotal = clone $this->_database;
-        $totalRecords = (int) $countTempTotal->count_all_results($this->table);
-        unset($countTempTotal);
+        $totalRecords = (int) (clone $this->_database)->count_all_results($this->getTableWithIndex());
 
         // Apply custom filter (advanced search)
         if (!empty($customFilter) && is_array($customFilter)) {
@@ -129,9 +123,7 @@ trait PaginateQuery
         $this->_paginateSearchFilter($columns);
 
         // Count total rows after filter
-        $countTempQuery = clone $this->_database;
-        $total = (int) $countTempQuery->count_all_results($this->table);
-        unset($countTempQuery);
+        $total = (int) (clone $this->_database)->count_all_results($this->getTableWithIndex());
 
         // Fetch only the required page of results
         $this->limit($dataPost['length'])->offset($dataPost['start']);
@@ -169,19 +161,13 @@ trait PaginateQuery
         $this->_paginateSearchFilter($columns);
 
         // Count total rows after filter
-        $countTempQuery = clone $this->_database;
-        $total = (int) $countTempQuery->count_all_results($this->table);
-        unset($countTempQuery);
+        $total = (int) (clone $this->_database)->count_all_results($this->getTableWithIndex());
 
         // Fetch only the required page of results
         $this->limit($perPage)->offset($offset);
 
         // Check if there are more results (for infinite scrolling)
         $hasMore = ($offset + $perPage) < $total;
-
-        if (function_exists('gc_collect_cycles')) {
-            gc_collect_cycles();
-        }
 
         return [
             'results' => $this->toArray()->get(),
