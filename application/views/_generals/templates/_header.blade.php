@@ -11,9 +11,6 @@
             <a href="{{ url('queue') }}" class="btn btn-outline-secondary btn-sm me-2">
                 Queue
             </a>
-            <a href="{{ url('csv-user-import') }}" class="btn btn-outline-success btn-sm">
-                Test CSV Import
-            </a>
         </div>
 
     </div>

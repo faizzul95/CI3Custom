@@ -14,13 +14,6 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 $hook = Luthier\Hook::getHooks();
 
-$hook['display_override'][0] = array(
-	'class'  	=> 'Develbar',
-	'function' 	=> 'debug',
-	'filename' 	=> 'Develbar.php',
-	'filepath' 	=> 'third_party/DevelBar/hooks'
-);
-
 $preSystem = [
 	[
 		'class'    => 'environment_hook',

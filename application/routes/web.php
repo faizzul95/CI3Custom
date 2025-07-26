@@ -31,9 +31,8 @@ require __DIR__ . '/PAGES/system.php';
 
 // Route::get('/profile', 'userProfile@index', ['middleware' => ['Sanctum']]);
 // Route::get('/user', 'user@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
-Route::get('/dashboard', 'dashboard@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
+Route::get('/dashboard', 'DashboardController@index', ['middleware' => ['Sanctum', 'ActiveURL']]);
 Route::get('/queue', 'QueueController@index', ['middleware' => ['Sanctum']]);
-Route::get('/csv-user-import', 'ImportController@index', ['middleware' => ['Sanctum']]);
 
 Route::set('404_override', function () {
     show_404();

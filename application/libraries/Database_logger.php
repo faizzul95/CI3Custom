@@ -31,7 +31,6 @@ class Database_logger
 		E_USER_ERROR        => 'User Error',
 		E_USER_WARNING      => 'User Warning',
 		E_USER_NOTICE       => 'User Notice',
-		E_STRICT            => 'Runtime Notice',
 		E_RECOVERABLE_ERROR => 'Catchable error',
 		E_DEPRECATED        => 'Runtime Notice',
 		E_USER_DEPRECATED   => 'User Warning'
@@ -116,5 +115,3 @@ class Database_logger
 		}
 	}
 }
-
-/* End of file Lib_log.php */
